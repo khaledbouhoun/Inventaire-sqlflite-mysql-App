@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:invontaire_local/class/crud.dart';
 import 'package:invontaire_local/constant/linkapi.dart';
 import 'package:invontaire_local/controoler/login_controller.dart';
+import 'package:invontaire_local/data/db_helper.dart';
 import 'package:invontaire_local/data/model/articles_model.dart';
 import 'package:invontaire_local/data/model/exercice_model.dart';
 import 'package:invontaire_local/data/model/dossei_model.dart';
@@ -57,13 +58,15 @@ class HomeController extends GetxController {
 
   Future<void> fetchArticles() async {
     try {
-      isLoadingArticles.value = true;
       await Future.delayed(const Duration(seconds: 2));
       final response = await crud.get(AppLink.products);
       print('response : $response');
 
       if (response.statusCode == 200) {
         products = (response.body as List).map((e) => Product.fromJson(e)).toList();
+        await DBHelper().insertAllProducts(products);
+
+        print('✅ Inserted ${products.length} products into local database');
         print('✅ Loaded ${products.length} products');
       } else {
         throw Exception('Failed to load articles');
@@ -71,16 +74,17 @@ class HomeController extends GetxController {
     } catch (e) {
       // Handle errors
     } finally {
-      isLoadingArticles.value = false;
+      products = await DBHelper().getAllProducts();
+      print('✅ Loaded ${products.length} products from local database');
       update();
     }
   }
 
   Future<void> onRefresh() async {
-    print("refreching ... user : ${user!.userLogin} dossie : ${dossier!.dosBdd} exercice : ${exercice!.eXEDATEDEB!.year} ");
+    isLoading.value = true;
     await fetchArticles();
+    isLoading.value = false;
   }
-
 
   Future<void> onTapInventaire(InventaireEnteteModel inventaire) async {
     Get.to(() => Details(), arguments: {'inventaire': inventaire});

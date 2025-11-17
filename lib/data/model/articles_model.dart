@@ -93,6 +93,7 @@ class Product {
   String? prdNo;
   String? prdNom;
   String? prdQr;
+  String? uploaded;
 
   Product({this.prdNo, this.prdNom, this.prdQr});
 
@@ -100,6 +101,7 @@ class Product {
     prdNo = json['prd_no'];
     prdNom = json['prd_nom'];
     prdQr = json['prd_qr'];
+    uploaded = (json['prd_qr'] == null || json['prd_qr'] == '') ? '0' : '1';
   }
 
   Map<String, dynamic> toJson() {
@@ -107,6 +109,7 @@ class Product {
     data['prd_no'] = prdNo;
     data['prd_nom'] = prdNom;
     data['prd_qr'] = prdQr;
+    data['uploaded'] = uploaded;
     return data;
   }
 }

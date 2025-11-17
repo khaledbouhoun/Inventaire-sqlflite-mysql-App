@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:invontaire_local/constant/color.dart';
 import 'package:invontaire_local/controoler/home_controller.dart';
+import 'package:invontaire_local/data/db_helper.dart';
 import 'package:invontaire_local/fonctions/alertexitapp.dart';
 import 'package:invontaire_local/view/widget/Goto_widget.dart';
 
@@ -18,6 +19,7 @@ class Home extends StatelessWidget {
           appBar: AppBar(
             backgroundColor: Colors.transparent,
             elevation: 0,
+            scrolledUnderElevation: 0,
 
             actions: [
               Padding(
@@ -69,22 +71,45 @@ class Home extends StatelessWidget {
                 onRefresh: controller.onRefresh,
                 color: AppColor.primaryColor,
                 backgroundColor: AppColor.background,
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 30, left: 16, right: 16),
-                    child: Column(
-                      children: [
-                        GotoWidget(
-                          text: "Gérer les inventaires",
-                          onTap: controller.goToInventaireList,
-                        ),
-                        GotoWidget(
-                          text: "Paramètres de l'application",
-                          onTap: controller.goToQrCodeSettings,
-                        ),
-                      ],
-                    ),
-                  ),
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 30, left: 16, right: 16),
+                  child: Obx(() {
+                    return controller.isLoading.value
+                        ? const Center(child: CircularProgressIndicator(color: AppColor.primaryColor, strokeWidth: 2))
+                        : Column(
+                            children: [
+                              GotoWidget(text: "Gérer les inventaires", onTap: controller.goToInventaireList),
+                              GotoWidget(text: "Paramètres de l'application", onTap: controller.goToQrCodeSettings),
+                              // Constrain the ListView by wrapping the FutureBuilder in Expanded
+                              Expanded(
+                                child: FutureBuilder(
+                                  future: DBHelper().getAll(),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState == ConnectionState.waiting) {
+                                      return const Center(child: CircularProgressIndicator());
+                                    }
+
+                                    if (!snapshot.hasData || (snapshot.data as List).isEmpty) {
+                                      return const Center(child: Text('No products available'));
+                                    }
+
+                                    final products = snapshot.data!;
+                                    return ListView.builder(
+                                      itemCount: products.length,
+                                      itemBuilder: (context, index) {
+                                        final p = products[index];
+                                        return ListTile(
+                                          title: Text(p['prd_nom'] + ' ' + (p['prd_no'] ?? '')),
+                                          subtitle: Text('QR: ${p['prd_qr'] ?? ""} + ${p['uploaded'] ?? ""}'),
+                                        );
+                                      },
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          );
+                  }),
                 ),
               ),
             ),
