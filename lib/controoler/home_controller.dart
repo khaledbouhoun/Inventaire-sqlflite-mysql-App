@@ -1,11 +1,11 @@
 import 'package:get/get.dart';
 import 'package:invontaire_local/class/crud.dart';
 import 'package:invontaire_local/constant/linkapi.dart';
-import 'package:invontaire_local/controoler/login_controller.dart';
-import 'package:invontaire_local/data/db_helper.dart';
+import 'package:invontaire_local/controoler/app_controller.dart';
 import 'package:invontaire_local/data/model/articles_model.dart';
 import 'package:invontaire_local/data/model/exercice_model.dart';
 import 'package:invontaire_local/data/model/dossei_model.dart';
+import 'package:invontaire_local/data/model/gestqr.dart';
 import 'package:invontaire_local/data/model/inventaireentete_model.dart';
 import 'package:invontaire_local/data/model/settings_model.dart';
 import 'package:invontaire_local/data/model/user_model.dart';
@@ -16,6 +16,7 @@ import 'package:invontaire_local/view/screen/qrpage.dart';
 class HomeController extends GetxController {
   final Crud crud = Crud();
   final AppLink appLink = Get.find<AppLink>();
+  final AppController appController = Get.find<AppController>();
   // final LoginController loginController = Get.put(LoginController());
   List<InventaireEnteteModel> inventaireentetelist = <InventaireEnteteModel>[];
   RxBool isLoading = false.obs;
@@ -23,11 +24,12 @@ class HomeController extends GetxController {
   RxBool loadingInventaireId = false.obs;
 
   User? user1;
-  UserModel? user;
+  User? user;
   DossierModel? dossier;
   ExerciceModel? exercice;
 
   List<Product> products = <Product>[];
+  List<GestQr> gestQr = <GestQr>[];
 
   BuySettings buySettings = BuySettings();
   SellSettings sellSettings = SellSettings();
@@ -36,45 +38,63 @@ class HomeController extends GetxController {
   void onInit() {
     super.onInit();
     print("Home controller initializing ...");
+    final args = Get.arguments ?? <String, dynamic>{};
 
-    user = UserModel(userId: '', userLogin: '', userPass: '');
-    dossier = DossierModel(dosNo: '', dosNom: '');
-    exercice = ExerciceModel(eXECLOS: 1, eXEDATEDEB: DateTime.now(), eXEDATEFIN: DateTime.now(), eXENO: 1);
+    user = args['user'] as User?;
+    // dossier = args['dossier'] as DossierModel?;
+    // exercice = args['exercice'] as ExerciceModel?;
 
     if (user == null) {
-      print("Error: Missing  Use is null.");
-    }
-    if (dossier == null) {
-      print("Error: Missing  Dosseie is null.");
-    }
-    if (exercice == null) {
-      print("Error: Missing  exceric is null.");
+      print("Warning: Missing user (null). Returning to Login.");
+      // If there's no user provided, send user back to login screen.
+      // Use a microtask to avoid navigation during init synchronously.
+      Future.microtask(() => Get.offAll(() => const Login()));
+      return;
     }
 
-    print("user = ${user!.userLogin ?? 'N/A'} dossie = ${dossier!.dosBdd ?? 'N/A'} exercice = ${exercice!.eXEDATEDEB!.year ?? 'N/A'} ");
+    if (dossier == null) {
+      print("Info: Dossier is null. Some features may be disabled until a dossier is selected.");
+    }
+
+    if (exercice == null) {
+      print("Info: Exercice is null. Some features may be disabled until an exercice is selected.");
+    }
 
     onRefresh();
   }
 
   Future<void> fetchArticles() async {
     try {
-      await Future.delayed(const Duration(seconds: 2));
-      final response = await crud.get(AppLink.products);
-      print('response : $response');
-
-      if (response.statusCode == 200) {
-        products = (response.body as List).map((e) => Product.fromJson(e)).toList();
-        await DBHelper().insertAllProducts(products);
-
-        print('✅ Inserted ${products.length} products into local database');
-        print('✅ Loaded ${products.length} products');
-      } else {
-        throw Exception('Failed to load articles');
+      if (!appController.isOnline.value) {
+        return;
       }
+
+      final responseproducts = await crud.get(AppLink.products);
+      final responsegestqr = await crud.get('${AppLink.gestqr}?usr_no=1');
+      print('response : $responseproducts');
+      print('response : $responsegestqr');
+
+      if (responseproducts.statusCode == 200) {
+        products = (responseproducts.body as List).map((e) => Product.fromJson(e)).toList();
+        for (var element in products) {
+          print('${element.toJson()}\n');
+        }
+      }
+      if (responsegestqr.statusCode == 200) {
+        gestQr = (responsegestqr.body as List).map((e) => GestQr.fromJson(e)).toList();
+        for (var element in gestQr) {
+          print('${element.toJson()}\n');
+        }
+      }
+
+      await appController.dbHelper.insertAllProducts(products);
+      await appController.dbHelper.insertAllGestqr(gestQr);
     } catch (e) {
+      print('Error fetching articles: $e');
       // Handle errors
     } finally {
-      products = await DBHelper().getAllProducts();
+      products = await appController.dbHelper.getAllProducts();
+      gestQr = await appController.dbHelper.getallgestqr();
       print('✅ Loaded ${products.length} products from local database');
       update();
     }

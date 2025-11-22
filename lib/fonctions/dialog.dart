@@ -46,8 +46,10 @@ class Dialogfun {
       colorText: Colors.white,
       margin: const EdgeInsets.all(16),
       borderRadius: 16,
-      duration: const Duration(seconds: 3),
-      animationDuration: const Duration(milliseconds: 800),
+      duration: const Duration(seconds: 2),
+      animationDuration: const Duration(milliseconds: 700),
+      forwardAnimationCurve: Curves.easeInOut,
+      reverseAnimationCurve: Curves.easeInOut,
       icon: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
@@ -59,8 +61,6 @@ class Dialogfun {
       shouldIconPulse: true,
       isDismissible: true,
       dismissDirection: DismissDirection.horizontal,
-      forwardAnimationCurve: Curves.easeOutBack,
-      reverseAnimationCurve: Curves.easeInBack,
     );
   }
 

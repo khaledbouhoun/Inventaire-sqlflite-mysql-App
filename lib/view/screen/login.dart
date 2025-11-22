@@ -2,248 +2,179 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:invontaire_local/constant/color.dart';
 import 'package:invontaire_local/controoler/login_controller.dart';
-import 'package:invontaire_local/data/model/exercice_model.dart';
-import 'package:invontaire_local/data/model/dossei_model.dart';
 import 'package:invontaire_local/data/model/user_model.dart';
 import 'package:invontaire_local/fonctions/alertexitapp.dart';
+import 'package:invontaire_local/view/widget/onlinewidget.dart';
 
-class Login extends StatelessWidget {
+class Login extends StatefulWidget {
   const Login({super.key});
+
+  @override
+  State<Login> createState() => _LoginState();
+}
+
+class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _opacityAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1000));
+
+    // Fade in animation for the whole content
+    _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeIn));
+
+    // Slide up animation for the main form content
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.2), // Start slightly below
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic));
+
+    // Start the animation when the screen is built
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColor.background,
-      body: GetBuilder<LoginController>(
-        init: LoginController(),
-        builder: (controller) {
-          return WillPopScope(
-            onWillPop: alertExitApp,
-            child: SafeArea(
-              child: CustomScrollView(
-                physics: const BouncingScrollPhysics(),
-                slivers: [
-                  // Modern App Bar
-                  SliverAppBar(
-                    floating: true,
-                    backgroundColor: Colors.transparent,
-                    elevation: 0,
-                    expandedHeight: 0,
-                    scrolledUnderElevation: 0,
-                    actions: [
-                      Padding(
-                        padding: const EdgeInsets.only(right: 16, top: 8),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: controller.showServerDialog,
-                            borderRadius: BorderRadius.circular(16),
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: AppColor.white,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(color: AppColor.primaryColor.withOpacity(0.1), blurRadius: 12, offset: const Offset(0, 4)),
+      // Enhanced Background
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [AppColor.background, AppColor.background.withOpacity(0.95)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: GetBuilder<LoginController>(
+          init: LoginController(),
+          builder: (controller) {
+            return WillPopScope(
+              onWillPop: alertExitApp,
+              child: SafeArea(
+                child: CustomScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  slivers: [
+                    const SliverToBoxAdapter(child: SizedBox(height: 30)),
+
+                    // Connection Status Badge (Animated Opacity)
+                    SliverToBoxAdapter(child: OnlineLoginWidget()),
+
+                    const SliverToBoxAdapter(child: SizedBox(height: 40)),
+
+                    // Main Content (Fade and Slide In)
+                    SliverToBoxAdapter(
+                      child: FadeTransition(
+                        opacity: _opacityAnimation,
+                        child: SlideTransition(
+                          position: _slideAnimation,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                            child: Form(
+                              key: controller.formStateLogin,
+                              child: Column(
+                                children: [
+                                  // Logo or Brand Section (with subtle scaling)
+                                  _buildLogo(),
+
+                                  const SizedBox(height: 32),
+
+                                  // Welcome Text
+                                  const Text(
+                                    'Bienvenue',
+                                    style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: AppColor.black, letterSpacing: -0.5),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Veuillez vous connecter pour continuer',
+                                    style: TextStyle(fontSize: 16, color: AppColor.black.withOpacity(0.6), fontWeight: FontWeight.w500),
+                                  ),
+
+                                  const SizedBox(height: 48),
+
+                                  // Dossier Dropdown
+                                  Obx(
+                                    () => _buildModernDropdown<User>(
+                                      icon: Icons.person_outline,
+                                      label: "Sélectionner l'utilisateur",
+                                      value: controller.selectedUser.value,
+                                      items: controller.users.map((user) {
+                                        return DropdownMenuItem(
+                                          value: user,
+                                          child: Text(
+                                            user.usrNom!,
+                                            style: const TextStyle(
+                                              fontFamily: "Nunito",
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColor.primaryColor,
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                      onChanged: controller.onUserChanged,
+                                    ),
+                                  ),
+
+                                  const SizedBox(height: 20),
+
+                                  // Password Field
+                                  Obx(() => _buildPasswordField(controller)),
+
+                                  const SizedBox(height: 40),
+
+                                  // // Remember Me Checkbox
+                                  // _buildCheckBox(controller),
+
+                                  // const SizedBox(height: 40),
+
+                                  // Login Button
+                                  Obx(() => _buildLoginButton(controller)),
+
+                                  const SizedBox(height: 40),
                                 ],
                               ),
-                              child: const Icon(Icons.settings_outlined, color: AppColor.primaryColor, size: 24),
                             ),
                           ),
                         ),
                       ),
-                    ],
-                  ),
-
-                  // Main Content
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                      child: Form(
-                        key: controller.formStateLogin,
-                        child: Column(
-                          children: [
-                            const SizedBox(height: 20),
-
-                            // Connection Status Badge
-                            Obx(() => _buildConnectionBadge(controller)),
-
-                            const SizedBox(height: 40),
-
-                            // Logo or Brand Section
-                            Container(
-                              width: 100,
-                              height: 100,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [AppColor.primaryColor, AppColor.primaryColor.withOpacity(0.7)],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(color: AppColor.primaryColor.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 8)),
-                                ],
-                              ),
-                              child: const Icon(Icons.inventory_2_outlined, color: Colors.white, size: 50),
-                            ),
-
-                            const SizedBox(height: 32),
-
-                            // Welcome Text
-                            const Text(
-                              'Bienvenue',
-                              style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: AppColor.black, letterSpacing: -0.5),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Veuillez vous connecter pour continuer',
-                              style: TextStyle(fontSize: 16, color: AppColor.black.withOpacity(0.6), fontWeight: FontWeight.w500),
-                            ),
-
-                            const SizedBox(height: 48),
-
-                            // Dossier Dropdown
-                            Obx(
-                              () => _buildModernDropdown<DossierModel>(
-                                icon: Icons.folder_outlined,
-                                label: "Sélectionner le dossier",
-                                value: controller.selectedDossier.value,
-                                items: controller.dossiers.map((dossier) {
-                                  return DropdownMenuItem(
-                                    value: dossier,
-                                    child: Text(
-                                      '${dossier.dosNo} : ${dossier.dosNom}',
-                                      style: const TextStyle(
-                                        fontFamily: "Nunito",
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColor.primaryColor,
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                                onChanged: controller.onDossierChanged,
-                              ),
-                            ),
-
-                            const SizedBox(height: 20),
-
-                            // Exercice Dropdown
-                            Obx(
-                              () => _buildModernDropdown<ExerciceModel>(
-                                icon: Icons.calendar_today_outlined,
-                                label: "Sélectionner l'exercice",
-                                value: controller.selectedExercice.value,
-                                items: controller.exercices.map((exercice) {
-                                  String label = exercice.eXEDATEDEB!.year == exercice.eXEDATEFIN!.year
-                                      ? '${exercice.eXEDATEDEB!.year}'
-                                      : '${exercice.eXEDATEDEB!.year} - ${exercice.eXEDATEFIN!.year}';
-                                  return DropdownMenuItem(
-                                    value: exercice,
-                                    child: Text(
-                                      label,
-                                      style: const TextStyle(
-                                        fontFamily: "Nunito",
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColor.primaryColor,
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                                onChanged: controller.onExerciceChanged,
-                              ),
-                            ),
-
-                            const SizedBox(height: 20),
-
-                            // User Dropdown
-                            Obx(
-                              () => _buildModernDropdown<UserModel>(
-                                icon: Icons.person_outline,
-                                label: "Sélectionner l'utilisateur",
-                                value: controller.selectedUser.value,
-                                items: controller.users.map((user) {
-                                  return DropdownMenuItem(
-                                    value: user,
-                                    child: Text(
-                                      user.userLogin!,
-                                      style: const TextStyle(
-                                        fontFamily: "Nunito",
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColor.primaryColor,
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                                onChanged: controller.onUserChanged,
-                              ),
-                            ),
-
-                            const SizedBox(height: 20),
-
-                            // Password Field
-                            Obx(() => _buildPasswordField(controller)),
-
-                            const SizedBox(height: 40),
-
-                            // Login Button
-                            Obx(() => _buildLoginButton(controller)),
-
-                            const SizedBox(height: 40),
-                          ],
-                        ),
-                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
 
-  // Connection Status Badge
-  Widget _buildConnectionBadge(LoginController controller) {
-    final isConnected = controller.isConnected.value;
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeInOut,
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+  // Logo Widget
+  Widget _buildLogo() {
+    return Container(
+      width: 120,
+      height: 120,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: isConnected ? [Colors.green.shade400, Colors.green.shade600] : [Colors.red.shade400, Colors.red.shade600],
+          colors: [AppColor.primaryColor, AppColor.primaryColor.withOpacity(0.8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(25),
-        boxShadow: [
-          BoxShadow(color: (isConnected ? Colors.green : Colors.red).withOpacity(0.4), blurRadius: 16, offset: const Offset(0, 6)),
-        ],
+        borderRadius: BorderRadius.circular(30), // Slightly less rounded for a modern look
+        boxShadow: [BoxShadow(color: AppColor.primaryColor.withOpacity(0.5), blurRadius: 30, offset: const Offset(0, 15))],
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: Colors.white.withOpacity(0.6), blurRadius: 8, spreadRadius: 2)],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            isConnected ? 'Connecté' : 'Déconnecté',
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
-          ),
-        ],
-      ),
+      child: const Icon(Icons.inventory_2_outlined, color: Colors.white, size: 60),
     );
   }
 
-  // Modern Dropdown Field
+  // Modern Dropdown Field (Slightly refined)
   Widget _buildModernDropdown<T>({
     required IconData icon,
     required String label,
@@ -251,26 +182,20 @@ class Login extends StatelessWidget {
     required List<DropdownMenuItem<T>> items,
     required Function(T?) onChanged,
   }) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
+    return Container(
       decoration: BoxDecoration(
         color: AppColor.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: value != null ? AppColor.primaryColor.withOpacity(0.3) : Colors.transparent, width: 2),
-        boxShadow: [BoxShadow(color: AppColor.primaryColor.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, 4))],
+        border: Border.all(color: value != null ? AppColor.primaryColor.withOpacity(0.3) : Colors.transparent, width: 1.5),
+        boxShadow: [BoxShadow(color: AppColor.black.withOpacity(0.05), blurRadius: 15, offset: const Offset(0, 8))],
       ),
       child: DropdownButtonFormField<T>(
         initialValue: value,
         isExpanded: true,
-        icon: Icon(Icons.keyboard_arrow_down_rounded, color: AppColor.primaryColor, size: 28),
+        icon: const Icon(Icons.arrow_drop_down_rounded, color: AppColor.primaryColor, size: 30),
         decoration: InputDecoration(
-          prefixIcon: Container(
-            margin: const EdgeInsets.all(14),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [AppColor.primaryColor.withOpacity(0.15), AppColor.primaryColor.withOpacity(0.08)]),
-              borderRadius: BorderRadius.circular(14),
-            ),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Icon(icon, color: AppColor.primaryColor, size: 24),
           ),
           labelText: label,
@@ -278,32 +203,32 @@ class Login extends StatelessWidget {
             color: AppColor.primaryColor.withOpacity(0.8),
             fontFamily: "Nunito",
             fontWeight: FontWeight.w600,
-            fontSize: 15,
+            fontSize: 16,
           ),
           filled: true,
           fillColor: Colors.transparent,
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 18),
         ),
         dropdownColor: AppColor.white,
         borderRadius: BorderRadius.circular(16),
         elevation: 8,
-        style: const TextStyle(color: AppColor.primaryColor, fontFamily: "Nunito", fontSize: 16, fontWeight: FontWeight.w600),
+        style: const TextStyle(color: AppColor.black, fontFamily: "Nunito", fontSize: 16, fontWeight: FontWeight.w600),
         items: items,
         onChanged: onChanged,
       ),
     );
   }
 
-  // Password Field
+  // Password Field (Refined with smoother error handling)
   Widget _buildPasswordField(LoginController controller) {
     return Container(
       decoration: BoxDecoration(
         color: AppColor.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: AppColor.primaryColor.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: AppColor.black.withOpacity(0.05), blurRadius: 15, offset: const Offset(0, 8))],
       ),
       child: TextFormField(
         controller: controller.passwordController,
@@ -320,14 +245,9 @@ class Login extends StatelessWidget {
           filled: true,
           fillColor: Colors.transparent,
           labelText: 'Mot de passe',
-          labelStyle: TextStyle(color: AppColor.primaryColor.withOpacity(0.8), fontWeight: FontWeight.w600),
-          prefixIcon: Container(
-            margin: const EdgeInsets.all(14),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [AppColor.primaryColor.withOpacity(0.15), AppColor.primaryColor.withOpacity(0.08)]),
-              borderRadius: BorderRadius.circular(14),
-            ),
+          labelStyle: TextStyle(color: AppColor.primaryColor.withOpacity(0.8), fontWeight: FontWeight.w600, fontSize: 16),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: const Icon(Icons.lock_outline, color: AppColor.primaryColor, size: 24),
           ),
           suffixIcon: IconButton(
@@ -339,62 +259,113 @@ class Login extends StatelessWidget {
           ),
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
+          focusedBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: AppColor.primaryColor.withOpacity(0.5), width: 1.5),
+            borderRadius: BorderRadius.circular(20),
+          ),
           errorBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: Colors.red.shade300, width: 2),
+            borderSide: BorderSide(color: Colors.red.shade300, width: 1.5),
             borderRadius: BorderRadius.circular(20),
           ),
           focusedErrorBorder: OutlineInputBorder(
             borderSide: BorderSide(color: Colors.red.shade400, width: 2),
             borderRadius: BorderRadius.circular(20),
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 18),
         ),
       ),
     );
   }
 
-  // Login Button
+  Widget _buildCheckBox(LoginController controller) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColor.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [BoxShadow(color: AppColor.primaryColor.withOpacity(0.15), blurRadius: 12, offset: const Offset(0, 6))],
+      ),
+      child: Row(
+        children: [
+          Obx(
+            () => Checkbox(
+              value: controller.rememberMe.value,
+              onChanged: (value) => controller.rememberMe.value = value!,
+              activeColor: AppColor.primaryColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            ),
+          ),
+
+          const SizedBox(width: 5),
+
+          const Text(
+            'Rester connecté',
+            style: TextStyle(fontFamily: "Nunito", fontSize: 15, fontWeight: FontWeight.w600, color: Colors.black87),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Login Button (Modern, animated, with loading state)
   Widget _buildLoginButton(LoginController controller) {
     final isLoading = controller.isLoading.value;
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
+    return SizedBox(
       width: double.infinity,
       height: 60,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColor.primaryColor, AppColor.primaryColor.withOpacity(0.8)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: AppColor.primaryColor.withOpacity(0.4), blurRadius: 20, offset: const Offset(0, 10))],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: isLoading ? null : controller.login,
+      child: ElevatedButton(
+        onPressed: isLoading ? null : controller.login,
+        style:
+            ElevatedButton.styleFrom(
+              padding: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              elevation: isLoading ? 0 : 15,
+              shadowColor: AppColor.primaryColor.withOpacity(0.4),
+            ).copyWith(
+              overlayColor: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
+                if (states.contains(WidgetState.pressed)) {
+                  return Colors.white.withOpacity(0.1);
+                }
+                return null;
+              }),
+            ),
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppColor.primaryColor, AppColor.primaryColor.withOpacity(0.85)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+          ),
           child: Container(
             alignment: Alignment.center,
-            child: isLoading
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 3, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
-                  )
-                : const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Se connecter',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-                      ),
-                      SizedBox(width: 12),
-                      Icon(Icons.arrow_forward, color: Colors.white, size: 22),
-                    ],
-                  ),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              transitionBuilder: (widget, animation) {
+                return ScaleTransition(scale: animation, child: widget);
+              },
+              child: isLoading
+                  ? const SizedBox(
+                      key: ValueKey('loading'),
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(strokeWidth: 3.5, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
+                    )
+                  : const Row(
+                      key: ValueKey('text'),
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Se connecter',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: 0.5),
+                        ),
+                        SizedBox(width: 12),
+                        Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 20),
+                      ],
+                    ),
+            ),
           ),
         ),
       ),

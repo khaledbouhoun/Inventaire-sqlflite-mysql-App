@@ -1,197 +1,280 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // For HapticFeedback
 import 'package:get/get.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+
+// Import your existing classes
 import 'package:invontaire_local/class/crud.dart';
 import 'package:invontaire_local/constant/linkapi.dart';
+import 'package:invontaire_local/controoler/app_controller.dart';
 import 'package:invontaire_local/controoler/home_controller.dart';
 import 'package:invontaire_local/data/db_helper.dart';
 import 'package:invontaire_local/data/model/articles_model.dart';
+import 'package:invontaire_local/data/model/gestqr.dart';
 import 'package:invontaire_local/fonctions/dialog.dart';
 
 class QrController extends GetxController {
+  // Dependencies
   final Crud crud = Crud();
-  final HomeController homeController = Get.put(HomeController());
+  final HomeController homeController = Get.find<HomeController>(); // Changed to Find to avoid re-putting
+  final AppController appController = Get.find<AppController>();
+  final Dialogfun dialogfun = Dialogfun();
+
+  // UI Controllers
+  final ScrollController scrollController = ScrollController();
   final GlobalKey<FormState> formState = GlobalKey<FormState>();
-  Dialogfun dialogfun = Dialogfun();
+  final TextEditingController searchController = TextEditingController();
 
-  ScrollController scrollController = ScrollController();
+  // Reactive State
+  var products = <Product>[].obs;
+  var filteredProducts = <Product>[].obs;
+  var selectedProduct = Rx<Product?>(null);
+  var searchQuery = ''.obs;
 
-  Rx<Product?> selectedproduct = Rx<Product?>(null);
-  List<Product> products = <Product>[];
-  List<Product> filteredproducts = <Product>[];
-  RxString searchQuery = ''.obs;
+  // Animation & Status States
+  var isLoading = true.obs; // Initial DB Load
+  var isSyncing = false.obs; // Background Upload status
 
-  RxBool isLoading = false.obs;
+  // Holds the ID of the product currently being generated to show a specific loader
+  var processingProductId = ''.obs;
+
+  // Trigger for Success Animation (listenable in View)
+  var successEventTrigger = 0.obs;
 
   @override
   void onInit() {
     super.onInit();
     _initializeData();
-
-    // مراقبة اتصال الإنترنت
-    Connectivity().onConnectivityChanged.listen((status) async {
-      print('---Connectivity status: $status');
-      if (!status.contains(ConnectivityResult.none)) {
-        await uploadPendingData();
-      }
-    });
+    _setupListeners();
   }
-
-  // @override
-  // void onReady() {
-  //   super.onReady();
-  //   _initializeData();
-  // }
 
   @override
   void onClose() {
     scrollController.dispose();
+    searchController.dispose();
     super.onClose();
   }
 
-  Future<void> _initializeData() async {
-    print("------ intitialize QrController");
+  // ================= Setup Listeners =================
+  void _setupListeners() {
+    // 1. Search Debounce: Waits 300ms after typing stops before filtering
+    debounce(searchQuery, (query) {
+      _performFilter(query.toString());
+    }, time: const Duration(milliseconds: 300));
 
+    // 2. Connectivity Listener (Uncommented and improved)
+    Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) async {
+      // Check if any result is not 'none'
+      bool isConnected = !results.contains(ConnectivityResult.none);
+      print('---Connectivity status changed: $isConnected');
+
+      if (isConnected) {
+        // Auto-sync when connection returns
+        await uploadPendingData(silent: true);
+      }
+    });
+  }
+
+  Future<void> _initializeData() async {
     isLoading.value = true;
 
-    // Load from SQLite
-    // final dbProducts = await DBHelper().getAllProducts();
+    // Using a Set for faster lookup during deduplication
+    final existingIds = products.map((e) => e.prdNo).toSet();
 
-    // print("------ dbproducts = ${dbProducts.length}");
-    // // Use assignAll to trigger RxList updates correctly
-    // products.assignAll(dbProducts);
-
-    // Merge with homeController products
+    List<Product> newProducts = [];
     for (var p in homeController.products) {
-      if (!products.any((e) => e.prdNo == p.prdNo)) {
-        products.add(p);
+      if (!existingIds.contains(p.prdNo)) {
+        newProducts.add(p);
       }
     }
 
-    print("------ products = ${products.length}");
+    products.addAll(newProducts);
+    filteredProducts.assignAll(products); // Initial fill
+    _sortProductsByQr(); // Keep unassigned ones at top usually
+
     isLoading.value = false;
-    update();
   }
 
-  // ================= Product Selection =================
-  void selectproduct(Product product) {
-    scrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-    selectedproduct.value = product;
+  // ================= UI Interactions =================
+
+  void selectProduct(Product product) {
+    selectedProduct.value = product;
+    // Smooth scroll to top to see the selection details
+    if (scrollController.hasClients) {
+      scrollController.animateTo(0, duration: const Duration(milliseconds: 400), curve: Curves.easeOutQuart);
+    }
   }
 
   void clearSelection() {
-    selectedproduct.value = null;
+    // Animate closing
+    selectedProduct.value = null;
+    searchController.clear();
     searchQuery.value = '';
-    filteredproducts.clear();
   }
 
-  // ================= Search & Sort =================
-  void filterproducts(String query) {
-    searchQuery.value = query.toLowerCase().trim();
+  void onSearchChanged(String val) {
+    searchQuery.value = val; // Triggers the debounce listener
+  }
 
-    if (searchQuery.value.isEmpty) {
-      filteredproducts.clear();
+  // ================= Filtering Logic =================
+  void _performFilter(String query) {
+    String cleanQuery = query.toLowerCase().trim();
+
+    if (cleanQuery.isEmpty) {
+      filteredProducts.assignAll(products);
+      _sortProductsByQr(); // Keep unassigned ones at top usually
       return;
     }
 
-    filteredproducts = products.where(_matchesSearchQuery).toList();
+    var results = products.where((product) {
+      final nameMatch = product.prdNom?.toLowerCase().contains(cleanQuery) ?? false;
+      final qrMatch = product.prdQr?.toLowerCase().contains(cleanQuery) ?? false;
+      final noMatch = product.prdNo?.toLowerCase().contains(cleanQuery) ?? false;
+      return nameMatch || qrMatch || noMatch;
+    }).toList();
 
-    _sortSearchResults();
-    _sortProductsByQr();
-  }
-
-  bool _matchesSearchQuery(Product product) {
-    final nameMatch = product.prdNom?.toLowerCase().contains(searchQuery.value) ?? false;
-    final qrMatch = product.prdQr?.toLowerCase().contains(searchQuery.value) ?? false;
-    final noMatch = product.prdNo?.toLowerCase().contains(searchQuery.value) ?? false;
-    return nameMatch || qrMatch || noMatch;
-  }
-
-  void _sortSearchResults() {
-    filteredproducts.sort((a, b) {
-      final aExact = a.prdNom?.toLowerCase() == searchQuery.value;
-      final bExact = b.prdNom?.toLowerCase() == searchQuery.value;
+    // Smart Sorting
+    results.sort((a, b) {
+      // 1. Exact matches first
+      final aExact = a.prdNom?.toLowerCase() == cleanQuery;
+      final bExact = b.prdNom?.toLowerCase() == cleanQuery;
       if (aExact && !bExact) return -1;
       if (!aExact && bExact) return 1;
 
-      final aStart = a.prdNom?.toLowerCase().startsWith(searchQuery.value) ?? false;
-      final bStart = b.prdNom?.toLowerCase().startsWith(searchQuery.value) ?? false;
+      // 2. Starts with query second
+      final aStart = a.prdNom?.toLowerCase().startsWith(cleanQuery) ?? false;
+      final bStart = b.prdNom?.toLowerCase().startsWith(cleanQuery) ?? false;
       if (aStart && !bStart) return -1;
       if (!aStart && bStart) return 1;
 
       return (a.prdNom ?? '').compareTo(b.prdNom ?? '');
     });
+
+    filteredProducts.assignAll(results);
   }
 
   void _sortProductsByQr() {
-    filteredproducts.sort((a, b) {
-      final aHasQr = a.prdQr?.isNotEmpty ?? false;
-      final bHasQr = b.prdQr?.isNotEmpty ?? false;
-      if (!aHasQr && bHasQr) return -1;
-      if (aHasQr && !bHasQr) return 1;
-      return 0;
-    });
+    // Sorts items without QR codes to the top for easier access
+    filteredProducts.sort((a, b) => a.prdNom!.toLowerCase().compareTo(b.prdNom!.toLowerCase()));
   }
 
-  // ================= QR Generation =================
+  // ================= QR Generation & State Change =================
   Future<void> generateQrForProduct() async {
-    if (selectedproduct.value == null) return;
-    if (selectedproduct.value!.prdQr != null && selectedproduct.value!.prdQr!.isNotEmpty) return;
-
-    selectedproduct.value!.prdQr = "${selectedproduct.value!.prdNo} ${selectedproduct.value!.prdNom}";
-    selectedproduct.refresh();
-
-    // Save locally
-    await DBHelper().insertProduct(selectedproduct.value!);
-
-    // Update list
-    final dbProducts = await DBHelper().getAllProducts();
-    products = dbProducts;
-
-    // Upload if internet available
-    final connectivity = await Connectivity().checkConnectivity();
-    if (!connectivity.contains(ConnectivityResult.none)) {
-      await uploadPendingData();
-    }
-
-    selectedproduct.value = null;
-  }
-
-  // ================= Upload Pending Data =================
-  Future<void> uploadPendingData() async {
-    print("------ uploadPendingData called");
-    final productPending = await DBHelper().getPendingProducts();
-    print("------ productPending length = ${productPending.length}");
-    if (productPending.isEmpty) {
-      print('No pending products to upload');
+    final prod = selectedProduct.value;
+    if (prod == null) return;
+    if (prod.prdQr != null && prod.prdQr!.isNotEmpty) {
+      dialogfun.showSnackInfo("Info", "QR already exists");
       return;
     }
-    int count = 0;
 
-    for (var product in productPending) {
-      try {
-        final prdNo = product.prdNo;
-        if (prdNo == null || prdNo.isEmpty) {
-          print('Skipping product with null/empty prdNo: ${product.prdNom}');
-          continue;
-        }
+    // 1. Set loading state for specific item
+    processingProductId.value = prod.prdNo ?? '';
 
-        final response = await crud.post("${AppLink.products}/$prdNo", {'prd_qr': product.prdQr});
-        if (response.statusCode == 201) {
-          int uploaded = await DBHelper().markAsUploaded(prdNo);
-          count = count + uploaded;
-        }
-      } catch (e) {
-        print('Upload failed for ${product.prdNo}: $e');
+    try {
+      // Artificial delay for animation effect (optional, remove in prod if needed)
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      // 2. Modify Data
+      prod.prdQr = "${prod.prdNo} / ${prod.prdNom}";
+
+      // 3. DB Transaction
+      await appController.dbHelper.insertGestQrAndProductInTransaction(prod, 1, 1);
+
+      // 4. Update Lists locally (Optimistic UI update)
+      int index = products.indexWhere((p) => p.prdNo == prod.prdNo);
+      if (index != -1) {
+        products[index] = prod;
+        products.refresh(); // Triggers UI rebuild
       }
-    }
 
-    // Refresh products
-    final dbProducts = await DBHelper().getAllProducts();
-    products = dbProducts;
+      // Update filtered list if needed
+      int fIndex = filteredProducts.indexWhere((p) => p.prdNo == prod.prdNo);
+      if (fIndex != -1) {
+        filteredProducts[fIndex] = prod;
+        filteredProducts.refresh();
+      }
 
-    if (count > 0) {
-      dialogfun.showSnackSuccess("Success", "Uploaded $count products successfully.");
+      // 5. Success Feedback
+      HapticFeedback.mediumImpact(); // Vibrate
+      successEventTrigger.value++; // Trigger View Animation
+
+      // Close selection after a brief success pause
+      await Future.delayed(const Duration(milliseconds: 500));
+      selectedProduct.value = null;
+
+      // 6. Attempt Sync
+      if (appController.isOnline.value) {
+        await uploadPendingData(silent: true);
+      }
+    } catch (e) {
+      dialogfun.showSnackError("Error", "Failed to generate: $e");
+    } finally {
+      processingProductId.value = ''; // Stop loading
     }
+  }
+
+  // ================= Upload Logic (Refactored) =================
+  Future<void> uploadPendingData({bool silent = false}) async {
+    if (isSyncing.value) return;
+    isSyncing.value = true;
+
+    int successCount = 0;
+
+    try {
+      // 1. Upload Products
+      final productPending = await appController.dbHelper.getPendingProducts();
+      for (var product in productPending) {
+        bool success = await _uploadSingleProduct(product);
+        if (success) successCount++;
+      }
+
+      // 2. Upload GestQR
+      final gestQrPending = await appController.dbHelper.getPendingGestQr();
+      for (var item in gestQrPending) {
+        bool success = await _uploadSingleGestQr(item);
+        if (success) successCount++;
+      }
+
+      // 3. Refresh data from DB to ensure consistency
+      products.assignAll(await appController.dbHelper.getAllProducts());
+      _performFilter(searchQuery.value);
+
+      if (!silent && successCount > 0) {
+        dialogfun.showSnackSuccess("Sync Complete", "Uploaded $successCount items.");
+      }
+    } catch (e) {
+      print("Global sync error: $e");
+    } finally {
+      isSyncing.value = false;
+    }
+  }
+
+  Future<bool> _uploadSingleProduct(Product product) async {
+    if (product.prdNo == null) return false;
+    try {
+      final response = await crud.post("${AppLink.products}/${product.prdNo}", {'prd_qr': product.prdQr});
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        await appController.dbHelper.markAsUploaded(product.prdNo!);
+        return true;
+      }
+    } catch (e) {
+      print("Err product upload: $e");
+    }
+    return false;
+  }
+
+  Future<bool> _uploadSingleGestQr(GestQr item) async {
+    if (item.gqrPrdNo == null) return false;
+    try {
+      final response = await crud.post(AppLink.gestqr, item.toJson());
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        await appController.dbHelper.markGestQrAsUploaded(item);
+        return true;
+      }
+    } catch (e) {
+      print("Err gestqr upload: $e");
+    }
+    return false;
   }
 }

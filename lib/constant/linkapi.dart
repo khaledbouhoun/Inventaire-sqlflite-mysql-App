@@ -2,27 +2,37 @@ class AppLink {
   // ===============================
   // Base server URL
   // ===============================
-  static const String server = "http://192.168.1.83:8000/api";
-  // static const String server = "https://merceriefz.com/mercerie_api/api";
+  // static const String server = "http://192.168.1.65:8000/api";
+  static const String server = "https://inventaire.zakawatt.dz/api";
+  //
+  // ===============================
+  // Test Endpoint
+  // ===============================
+  static const String test = "$server/test";
 
   // ===============================
-  // Auth Endpoints
+  // User Endpoints
   // ===============================
-  static const String register = "$server/auth/register";
-  static const String login = "$server/auth/login";
-  static const String autoLogin = "$server/auth/auto-login";
-  static const String logout = "$server/auth/logout";
-  static const String updatePointage = "$server/auth/update-pointage";
-  static const String updateDepot = "$server/auth/update-depot";
+  static const String users = "$server/user"; // GET all users, POST register
+  static const String login = "$server/user/login";
+  static const String autoLogin = "$server/user/auto-login";
+  static const String logout = "$server/user/logout";
+  static const String updatePointage = "$server/user/update-pointage";
+  static const String updateDepot = "$server/user/update-depot";
 
   // ===============================
   // Product Endpoints
   // ===============================
   static const String products = "$server/products"; // GET list or POST create
-  static const String import = "$server/products/import";
+  static const String importProducts = "$server/products/import"; // POST import Excel
 
   // ===============================
-  // Test Endpoint
+  // Lemplacement Endpoints
   // ===============================
-  static const String test = "$server/test";
+  static const String lemplacements = "$server/lemplacements"; // GET all, POST create
+
+  // ===============================
+  // Gestqr Endpoints
+  // ===============================
+  static const String gestqr = "$server/gestqr"; // GET all, POST create
 }

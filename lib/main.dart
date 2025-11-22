@@ -30,7 +30,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
 
       initialBinding: InitialBindings(),
-      home: Home(),
+      home: Login(),
       // home: TicketScreen(),
     );
   }

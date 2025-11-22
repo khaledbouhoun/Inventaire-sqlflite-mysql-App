@@ -1,52 +1,27 @@
-class UserModel {
-  String? userId;
-  String? userLogin;
-  String? userPass;
-  String? usernom;
-  String? userprenom;
-
-  UserModel({this.userId, this.userLogin, this.userPass});
-
-  UserModel.fromJson(Map<String, dynamic> json) {
-    userId = json['UsrNo'];
-    usernom = json['USRNOM'];
-    userprenom = json['USRPRENOM'];
-    userLogin = json['USRLOGIN'];
-    userPass = json['UsrPassw'];
-  }
-
-  Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = <String, dynamic>{};
-    data['UsrNo'] = userId;
-    data['USRNOM'] = usernom;
-    data['USRPRENOM'] = userprenom;
-    data['USRLOGIN'] = userLogin;
-    data['UsrPassw'] = userPass;
-    return data;
-  }
-}
-
 class User {
-  int? usrId;
+  int? usrNo;
   String? usrNom;
-  String? usrPntg;
-  String? usrDpot;
+  int? usrPntg;
+  int? usrLemp;
+  String? usrLempNom;
 
-  User({this.usrId, this.usrNom, this.usrPntg, this.usrDpot});
+  User({this.usrNo, this.usrNom, this.usrPntg, this.usrLemp, this.usrLempNom});
 
   User.fromJson(Map<String, dynamic> json) {
-    usrId = json['usr_id'];
+    usrNo = json['usr_no'];
     usrNom = json['usr_nom'];
     usrPntg = json['usr_pntg'];
-    usrDpot = json['usr_dpot'];
+    usrLemp = json['usr_lemp'];
+    usrLempNom = json['usr_lemp_nom'];
   }
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = <String, dynamic>{};
-    data['usr_id'] = usrId;
+    data['usr_no'] = usrNo;
     data['usr_nom'] = usrNom;
     data['usr_pntg'] = usrPntg;
-    data['usr_dpot'] = usrDpot;
+    data['usr_lemp'] = usrLemp;
+    data['usr_lemp_nom'] = usrLempNom;
     return data;
   }
 }

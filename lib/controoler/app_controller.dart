@@ -47,7 +47,7 @@ class AppController extends GetxController {
       isOnline.value = true;
     } else {
       isOnline.value = false;
-      dialogfun.showSnackError("No Internet", "You are offline. Some features may be unavailable.");
+      // dialogfun.showSnackError("No Internet", "You are offline. Some features may be unavailable.");
     }
 
     if (!isOnline.value) {

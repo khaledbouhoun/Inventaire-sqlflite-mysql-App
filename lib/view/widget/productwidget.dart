@@ -6,53 +6,83 @@ import 'package:qr_flutter/qr_flutter.dart';
 class ProductWidget extends StatelessWidget {
   final Product item;
   final VoidCallback? onTap;
+  // New optional parameter for dynamic content/status indicator from controller
+  final Widget? trailingWidget;
 
-  const ProductWidget({super.key, required this.item, this.onTap});
+  const ProductWidget({
+    super.key,
+    required this.item,
+    this.onTap,
+    this.trailingWidget, // Added to constructor
+  });
 
   @override
   Widget build(BuildContext context) {
     final bool qrExists = (item.prdQr != null && item.prdQr!.isNotEmpty);
 
+    // Determine the color based on QR existence for visual feedback
+    final Color statusColor = qrExists ? Colors.green.shade600 : Colors.grey.shade500;
+
     return Card(
       color: AppColor.white,
-      elevation: 3,
-      shadowColor: AppColor.primaryColor.withOpacity(0.12),
+      // Use slightly higher elevation for a more modern look
+      elevation: 4,
+      shadowColor: AppColor.primaryColor.withOpacity(0.15),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(16), // Slightly reduced padding
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // QR
+              // 1. QR or Placeholder Icon
               Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(color: AppColor.primaryColor.withOpacity(0.05), borderRadius: BorderRadius.circular(12)),
-                child: QrImageView(data: item.prdQr ?? "", size: 85, backgroundColor: Colors.white),
+                width: 70, // Fixed width
+                height: 70, // Fixed height
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: AppColor.primaryColor.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: statusColor.withOpacity(0.3), width: 1.5),
+                ),
+                child: qrExists
+                    ? QrImageView(
+                        data: item.prdQr!,
+                        size: 60, // Smaller QR code within the container
+                        backgroundColor: Colors.white,
+                        version: QrVersions.auto,
+                        errorStateBuilder: (cxt, err) => const Center(child: Icon(Icons.error_outline, color: Colors.red)),
+                      )
+                    : Icon(
+                        Icons.tag, // Use a generic tag icon for products without QR
+                        size: 35,
+                        color: Colors.grey.shade400,
+                      ),
               ),
 
               const SizedBox(width: 16),
 
-              // Product info
+              // 2. Product info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Name
                     Text(
-                      item.prdNom ?? "",
+                      item.prdNom ?? "No Name",
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppColor.primaryColor),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColor.primaryColor),
                     ),
 
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
 
                     // ID
                     Text(
-                      "ID: ${item.prdNo ?? ''}",
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColor.primaryColor.withOpacity(0.7)),
+                      "ID: ${item.prdNo ?? 'N/A'}",
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColor.primaryColor.withOpacity(0.6)),
                     ),
 
                     const SizedBox(height: 8),
@@ -60,15 +90,11 @@ class ProductWidget extends StatelessWidget {
                     // QR Status
                     Row(
                       children: [
-                        Icon(
-                          qrExists ? Icons.check_circle_rounded : Icons.qr_code_2_rounded,
-                          size: 18,
-                          color: qrExists ? Colors.green : Colors.grey,
-                        ),
+                        Icon(qrExists ? Icons.check_circle_rounded : Icons.info_outline, size: 16, color: statusColor),
                         const SizedBox(width: 6),
                         Text(
-                          qrExists ? "QR Generated" : "QR Not Generated",
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: qrExists ? Colors.green : Colors.grey),
+                          qrExists ? "QR Code Exists" : "Needs QR Generation",
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: statusColor),
                         ),
                       ],
                     ),
@@ -76,8 +102,12 @@ class ProductWidget extends StatelessWidget {
                 ),
               ),
 
-              // BUTTON ARROW
-              Icon(Icons.arrow_forward_ios_rounded, size: 18, color: AppColor.primaryColor.withOpacity(0.5)),
+              const SizedBox(width: 8),
+
+              // 3. Dynamic Trailing Widget (from QrPage)
+              // If the parent provided a widget (e.g., loading spinner), use it.
+              // Otherwise, show the default arrow/indicator.
+              trailingWidget ?? Icon(Icons.arrow_forward_ios_rounded, size: 18, color: AppColor.primaryColor.withOpacity(0.5)),
             ],
           ),
         ),

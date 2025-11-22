@@ -25,7 +25,7 @@ class DetailsController extends GetxController {
   ScrollController scrollController = ScrollController();
 
   // ========== Data Models ==========
-  UserModel? user;
+  // UserModel? user;
   DossierModel? dossier;
   ExerciceModel? exercice;
   InventaireEnteteModel? inventaire;
@@ -69,7 +69,7 @@ class DetailsController extends GetxController {
       // Get arguments from navigation
       final args = Get.arguments;
       if (args != null) {
-        user = homeController.user;
+        // user = homeController.user;
         dossier = homeController.dossier;
         exercice = homeController.exercice;
         inventaire = args['inventaire'];
@@ -566,7 +566,7 @@ class DetailsController extends GetxController {
       iNDMNTTHEOR: 0,
       iNDMNTDIFF: 0.0, // montant difirence = montant inv - montant theor
       iNDQTEINVG: _calculateqtySurface(), // qty inv in progress
-      iNDUSER: user!.userLogin,
+      iNDUSER: "",
       iNDDH: DateTime.now(),
     );
   }
