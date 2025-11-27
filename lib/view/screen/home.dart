@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:invontaire_local/constant/color.dart';
-import 'package:invontaire_local/controoler/app_controller.dart';
 import 'package:invontaire_local/controoler/home_controller.dart';
-import 'package:invontaire_local/data/db_helper.dart';
 import 'package:invontaire_local/fonctions/alertexitapp.dart';
 import 'package:invontaire_local/view/widget/Goto_widget.dart';
 import 'package:invontaire_local/view/widget/onlinewidget.dart';
@@ -78,21 +76,17 @@ class Home extends StatelessWidget {
                 onRefresh: controller.onRefresh,
                 color: AppColor.primaryColor,
                 backgroundColor: AppColor.background,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 30, left: 16, right: 16),
-                  child: Obx(() {
-                    return controller.isLoading.value
-                        ? const Center(child: CircularProgressIndicator(color: AppColor.primaryColor, strokeWidth: 2))
-                        : Column(
-                            children: [
-                              // GotoWidget(text: "Gérer les inventaires", onTap: controller.goToInventaireList),
-                              GotoWidget(text: "Paramètres de l'application", onTap: controller.goToQrCodeSettings),
-
-                              SizedBox(height: 20),
-                            ],
-                          );
-                  }),
-                ),
+                child: Obx(() {
+                  return controller.isLoading.value
+                      ? const Center(child: CircularProgressIndicator(color: AppColor.primaryColor, strokeWidth: 2))
+                      : // Show settings widget at the top
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            children: [GotoWidget(text: "Génération Code Qr", onTap: controller.goToQrCodeSettings)],
+                          ),
+                        );
+                }),
               ),
             ),
           ),

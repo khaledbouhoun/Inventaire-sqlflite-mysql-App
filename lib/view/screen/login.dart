@@ -21,6 +21,7 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    print("Login screen initialized.");
     _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1000));
 
     // Fade in animation for the whole content
@@ -60,93 +61,100 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
             return WillPopScope(
               onWillPop: alertExitApp,
               child: SafeArea(
-                child: CustomScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  slivers: [
-                    const SliverToBoxAdapter(child: SizedBox(height: 30)),
+                child: RefreshIndicator(
+                  onRefresh: () => controller.fetchUsers(),
+                  color: AppColor.primaryColor,
+                  backgroundColor: AppColor.background,
+                  child: CustomScrollView(
+                    // physics: const BouncingScrollPhysics(),
+                    slivers: [
+                      const SliverToBoxAdapter(child: SizedBox(height: 30)),
 
-                    // Connection Status Badge (Animated Opacity)
-                    SliverToBoxAdapter(child: OnlineLoginWidget()),
+                      // Main Content (Fade and Slide In)
+                      SliverToBoxAdapter(
+                        child: FadeTransition(
+                          opacity: _opacityAnimation,
+                          child: SlideTransition(
+                            position: _slideAnimation,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                              child: Form(
+                                key: controller.formStateLogin,
+                                child: Column(
+                                  children: [
+                                    // Logo or Brand Section (with subtle scaling)
+                                    OnlineLoginWidget(),
+                                    const SizedBox(height: 50),
+                                    _buildLogo(),
 
-                    const SliverToBoxAdapter(child: SizedBox(height: 40)),
+                                    const SizedBox(height: 32),
 
-                    // Main Content (Fade and Slide In)
-                    SliverToBoxAdapter(
-                      child: FadeTransition(
-                        opacity: _opacityAnimation,
-                        child: SlideTransition(
-                          position: _slideAnimation,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                            child: Form(
-                              key: controller.formStateLogin,
-                              child: Column(
-                                children: [
-                                  // Logo or Brand Section (with subtle scaling)
-                                  _buildLogo(),
-
-                                  const SizedBox(height: 32),
-
-                                  // Welcome Text
-                                  const Text(
-                                    'Bienvenue',
-                                    style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: AppColor.black, letterSpacing: -0.5),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Veuillez vous connecter pour continuer',
-                                    style: TextStyle(fontSize: 16, color: AppColor.black.withOpacity(0.6), fontWeight: FontWeight.w500),
-                                  ),
-
-                                  const SizedBox(height: 48),
-
-                                  // Dossier Dropdown
-                                  Obx(
-                                    () => _buildModernDropdown<User>(
-                                      icon: Icons.person_outline,
-                                      label: "Sélectionner l'utilisateur",
-                                      value: controller.selectedUser.value,
-                                      items: controller.users.map((user) {
-                                        return DropdownMenuItem(
-                                          value: user,
-                                          child: Text(
-                                            user.usrNom!,
-                                            style: const TextStyle(
-                                              fontFamily: "Nunito",
-                                              fontWeight: FontWeight.w600,
-                                              color: AppColor.primaryColor,
-                                            ),
-                                          ),
-                                        );
-                                      }).toList(),
-                                      onChanged: controller.onUserChanged,
+                                    // Welcome Text
+                                    const Text(
+                                      'Bienvenue',
+                                      style: TextStyle(
+                                        fontSize: 36,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColor.black,
+                                        letterSpacing: -0.5,
+                                      ),
                                     ),
-                                  ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Veuillez vous connecter pour continuer',
+                                      style: TextStyle(fontSize: 16, color: AppColor.black.withOpacity(0.6), fontWeight: FontWeight.w500),
+                                    ),
 
-                                  const SizedBox(height: 20),
+                                    const SizedBox(height: 48),
 
-                                  // Password Field
-                                  Obx(() => _buildPasswordField(controller)),
+                                    // Dossier Dropdown
+                                    Obx(
+                                      () => _buildModernDropdown<User>(
+                                        icon: Icons.person_outline,
+                                        label: "Sélectionner l'utilisateur",
+                                        value: controller.selectedUser.value,
+                                        items: controller.users.map((user) {
+                                          return DropdownMenuItem(
+                                            value: user,
+                                            child: Text(
+                                              user.usrNom!,
+                                              style: const TextStyle(
+                                                fontFamily: "Nunito",
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColor.primaryColor,
+                                              ),
+                                            ),
+                                          );
+                                        }).toList(),
+                                        onChanged: controller.onUserChanged,
+                                      ),
+                                    ),
 
-                                  const SizedBox(height: 40),
+                                    const SizedBox(height: 20),
 
-                                  // // Remember Me Checkbox
-                                  // _buildCheckBox(controller),
+                                    // Password Field
+                                    Obx(() => _buildPasswordField(controller)),
 
-                                  // const SizedBox(height: 40),
+                                    const SizedBox(height: 40),
 
-                                  // Login Button
-                                  Obx(() => _buildLoginButton(controller)),
+                                    // // Remember Me Checkbox
+                                    // _buildCheckBox(controller),
 
-                                  const SizedBox(height: 40),
-                                ],
+                                    // const SizedBox(height: 40),
+
+                                    // Login Button
+                                    Obx(() => _buildLoginButton(controller)),
+
+                                    const SizedBox(height: 40),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             );

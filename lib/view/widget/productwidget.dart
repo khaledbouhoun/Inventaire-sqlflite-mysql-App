@@ -4,6 +4,7 @@ import 'package:invontaire_local/data/model/articles_model.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 class ProductWidget extends StatelessWidget {
+  // final bool qrExists;
   final Product item;
   final VoidCallback? onTap;
   // New optional parameter for dynamic content/status indicator from controller
@@ -11,6 +12,7 @@ class ProductWidget extends StatelessWidget {
 
   const ProductWidget({
     super.key,
+    // required this.qrExists,
     required this.item,
     this.onTap,
     this.trailingWidget, // Added to constructor
@@ -26,9 +28,13 @@ class ProductWidget extends StatelessWidget {
     return Card(
       color: AppColor.white,
       // Use slightly higher elevation for a more modern look
-      elevation: 4,
-      shadowColor: AppColor.primaryColor.withOpacity(0.15),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      elevation: 0,
+      shadowColor: statusColor,
+
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: statusColor.withOpacity(0.5), width: 2),
+        borderRadius: BorderRadius.circular(18),
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
         onTap: onTap,
@@ -43,7 +49,7 @@ class ProductWidget extends StatelessWidget {
                 height: 70, // Fixed height
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: AppColor.primaryColor.withOpacity(0.05),
+                  color: statusColor.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: statusColor.withOpacity(0.3), width: 1.5),
                 ),
@@ -107,7 +113,7 @@ class ProductWidget extends StatelessWidget {
               // 3. Dynamic Trailing Widget (from QrPage)
               // If the parent provided a widget (e.g., loading spinner), use it.
               // Otherwise, show the default arrow/indicator.
-              trailingWidget ?? Icon(Icons.arrow_forward_ios_rounded, size: 18, color: AppColor.primaryColor.withOpacity(0.5)),
+              Icon(qrExists ? Icons.qr_code_2_rounded : Icons.add_circle_outline, color: qrExists ? Colors.green : AppColor.primaryColor),
             ],
           ),
         ),

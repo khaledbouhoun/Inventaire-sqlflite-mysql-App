@@ -24,12 +24,12 @@ class DBHelper {
     // 1. Get the safe internal path (Works on Android & iOS)
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'zakawatt_inventaire.db');
-    // copyDatabaseToDownloads();
 
     print("Database path = $path");
 
     // 2. Open the database
     return await openDatabase(
+      // '/storage/emulated/0/Download/khaled.db',
       path,
       version: 1,
       onConfigure: _onConfigure, // Essential for Foreign Keys
@@ -112,7 +112,6 @@ class DBHelper {
 
     // --- 4. Upsert incoming gestQrs ---
     for (var g in gestQrs) {
-      print("---- insert ${g.toJson()}");
       batch.insert(
         'gestqr',
         g.toJson(), // make sure gqr_date is a string
@@ -128,7 +127,7 @@ class DBHelper {
     // --- 6. Commit ---
     try {
       await batch.commit(noResult: true);
-      print("✅ Synced: ${gestQrs.length} upserted, ${toDelete.length} deleted.");
+      print("✅ Gestqr Synced: ${gestQrs.length} upserted, ${toDelete.length} deleted.");
       return gestQrs;
     } catch (e) {
       print("❌ Batch sync failed: $e");
@@ -176,7 +175,6 @@ class DBHelper {
 
     // --- 4. Upsert incoming products ---
     for (var p in products) {
-      print("---- insert ${p.toJson()}");
       batch.insert(
         'products',
         p.toJson(), // MUST NOT contain DateTime directly!!
@@ -187,14 +185,13 @@ class DBHelper {
     // --- 5. Delete missing products ---
     if (toDelete.isNotEmpty) {
       final placeholders = List.generate(toDelete.length, (_) => '?').join(',');
-      print("---- delete in ($placeholders) values $toDelete");
       batch.delete('products', where: 'prd_no IN ($placeholders)', whereArgs: toDelete);
     }
 
     // --- 6. Commit ---
     try {
       await batch.commit(noResult: true);
-      print("✅ Synced: ${products.length} upserted, ${toDelete.length} deleted.");
+      print("✅ Products Synced: ${products.length} upserted, ${toDelete.length} deleted.");
       return products;
     } catch (e) {
       print("❌ Batch sync failed: $e");
@@ -227,25 +224,33 @@ class DBHelper {
 
   Future<void> insertGestQrAndProductInTransaction(Product product, int gqrUsrNo, int gqrLempNo) async {
     final db = await database;
-    return await db.transaction((txn) async {
-      // 1) Compute next gqr_no by taking MAX(gqr_no) for this (lemp, usr) and adding 1
-      final maxRes = await txn.rawQuery('SELECT COALESCE(MAX(gqr_no), 0) as max_no FROM gestqr WHERE gqr_lemp_no = ? AND gqr_usr_no = ?', [
-        gqrLempNo,
-        gqrUsrNo,
-      ]);
-      int nextNo = 1;
-      if (maxRes.isNotEmpty) {
-        final val = maxRes.first['max_no'];
-        if (val is int) {
-          nextNo = val + 1;
-        } else {
-          nextNo = (int.tryParse(val?.toString() ?? '0') ?? 0) + 1;
-        }
-      }
-      await txn.insert("products", product.toJson(), conflictAlgorithm: ConflictAlgorithm.replace);
-      GestQr gestQr = GestQr(gqrLempNo: 1, gqrUsrNo: 1, gqrPrdNo: product.prdNo!, gqrNo: nextNo, gqrDate: DateTime.now(), isUploaded: 0);
 
-      await txn.insert("gestqr", gestQr.toJson(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.transaction((txn) async {
+      // Compute next gqr_no directly in SQL
+      final result = await txn.rawQuery(
+        '''
+      SELECT COALESCE(MAX(gqr_no), 0) + 1 as nextNo
+      FROM gestqr
+      WHERE gqr_lemp_no = ? AND gqr_usr_no = ?
+      ''',
+        [gqrLempNo, gqrUsrNo],
+      );
+      int nextNo = result.first['nextNo'] as int;
+
+      // Insert or replace product
+      await txn.insert('products', product.toJson(), conflictAlgorithm: ConflictAlgorithm.replace);
+
+      // Insert gestqr
+      final gestQr = GestQr(
+        gqrLempNo: gqrLempNo,
+        gqrUsrNo: gqrUsrNo,
+        gqrPrdNo: product.prdNo!,
+        gqrNo: nextNo,
+        gqrDate: DateTime.now(),
+        isUploaded: 0,
+      );
+
+      await txn.insert('gestqr', gestQr.toJson(), conflictAlgorithm: ConflictAlgorithm.replace);
     });
   }
 

@@ -43,8 +43,10 @@ class LoginController extends GetxController {
 
   // Fetch users for selection (Name/ID only)
   Future<void> fetchUsers() async {
+    print("Fetching users for login...");
     try {
-      isLoading.value = true;
+      isLoading
+      .value = true;
       // We still fetch users to populate the dropdown for selection.
       final response = await crud.get(AppLink.users);
 
@@ -103,7 +105,6 @@ class LoginController extends GetxController {
           // Assuming response.body is a Map<String, dynamic> containing the logged-in User data.
 
           // Save user data (e.g., token) if necessary, and navigate to Home
-          dialogfun.showSnackSuccess('Succès', 'Connexion réussie');
           Get.off(() => Home(), arguments: {'user': selectedUser.value});
         } else if (response.statusCode == 401) {
           // Unauthorized - Server explicitly stated invalid credentials

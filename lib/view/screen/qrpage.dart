@@ -6,19 +6,16 @@ import 'package:invontaire_local/view/widget/onlinewidget.dart';
 import 'package:invontaire_local/view/widget/productwidget.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-// Assuming these are the new/updated imports based on your app structure:
 import 'package:invontaire_local/data/model/articles_model.dart';
 
 class QrPage extends StatelessWidget {
   QrPage({super.key});
 
-  // Use Get.put() for controllers already initialized in the binding or the previous screen.
-  final QrController controller = Get.put(QrController());
+  // Make sure controller is created ONCE only (bindings recommended)
+  final QrController controller = Get.put<QrController>(QrController());
 
   @override
   Widget build(BuildContext context) {
-    print("------ intitialize QrPage");
-
     return Scaffold(
       backgroundColor: AppColor.background,
       appBar: AppBar(
@@ -34,210 +31,161 @@ class QrPage extends StatelessWidget {
           onPressed: () => Get.back(),
           icon: const Icon(Icons.arrow_back_ios_new, color: AppColor.primaryColor),
         ),
-        actions: [MiniOnlineWidget()],
+        actions: const [MiniOnlineWidget()],
       ),
-      body: Stack(
-        // Use Stack to overlay success animation
-        children: [
-          SafeArea(
-            child: Obx(() {
-              if (controller.isLoading.value) {
-                return const Center(child: CircularProgressIndicator());
-              }
 
-              if (controller.products.isEmpty) {
-                return _buildEmptyState();
-              }
+      body: Obx(() {
+        if (controller.isLoading.value) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-              return SingleChildScrollView(
+        if (controller.products.isEmpty) {
+          return _emptyState();
+        }
+
+        return Column(
+          children: [
+            // ----------------- SELECTED PRODUCT CARD -----------------
+            Obx(() => controller.selectedProduct.value == null ? const SizedBox() : _selectedProductCard(controller)),
+
+            // ---------------------- PRODUCT LIST ----------------------
+            Expanded(
+              child: ListView.builder(
                 controller: controller.scrollController,
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    // 1. Selected Product Card with Animation
-                    Obx(() => _buildSelectedProductCard(controller)),
+                padding: const EdgeInsets.all(12),
+                itemCount: controller.visibleResults.length,
+                itemBuilder: (context, index) {
+                  final item = controller.visibleResults[index];
 
-                    const SizedBox(height: 16),
-
-                    // 2. Main Product List (using filteredProducts for better consistency)
-                    // The onTap here is the default selection logic
-                    ...controller.filteredProducts.map(
-                      (p) => _buildProductListItem(p, controller, onTap: () => controller.selectProduct(p)),
-                    ),
-
-                    const SizedBox(height: 100), // Extra space for FAB clearance
-                  ],
-                ),
-              );
-            }),
-          ),
-
-          // 3. Global Sync Indicator (New)
-          Obx(
-            () => controller.isSyncing.value
-                ? const Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Padding(
-                      padding: EdgeInsets.only(bottom: 80.0),
-                      child: Chip(
-                        label: Text("Syncing data...", style: TextStyle(color: Colors.white)),
-                        backgroundColor: Colors.blueAccent,
-                      ),
-                    ),
-                  )
-                : const SizedBox.shrink(),
-          ),
-
-          // 4. Success Animation Overlay
-          // _buildSuccessOverlay(context, controller),
-        ],
-      ),
+                  return ProductWidget(
+                    // qrExists:controller.qrExists(item),
+                    item: item,
+                    onTap: () {
+                      controller.selectProduct(item);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      }),
 
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showSearchModal(context, controller),
+        onPressed: () => _openSearchModal(context),
         backgroundColor: AppColor.primaryColor,
         icon: const Icon(Icons.search, color: Colors.white),
-        label: Obx(() => Text(controller.filteredProducts.length.toString(), style: const TextStyle(color: Colors.white))),
+        label: Text(
+          "Chercher ",
+          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+        ),
       ),
     );
   }
 
-  // --- BUILDERS & WIDGETS ---
+  // ----------------------- PRODUCT ITEM -----------------------
+  Widget _productItem(Product item, QrController controller, {required VoidCallback onTap}) {
+    final hasQr = item.prdQr != null && item.prdQr!.isNotEmpty;
+    final isProcessing = controller.processingProductId.value == item.prdNo;
 
-  // Refactored Product List Item to accept a required onTap callback
-  Widget _buildProductListItem(Product product, QrController controller, {required VoidCallback onTap}) {
-    // Determine if this specific product is currently processing
-    final isProcessing = controller.processingProductId.value == product.prdNo;
-    final hasQr = product.prdQr != null && product.prdQr!.isNotEmpty;
+    return Card(
+      elevation: 1,
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ProductWidget(
+        // qrExists: controller.qrExists(item),
+        item: item,
+        onTap: onTap,
+        trailingWidget: isProcessing
+            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+            : Icon(hasQr ? Icons.qr_code_2_rounded : Icons.add_circle_outline, color: hasQr ? Colors.green : AppColor.primaryColor),
+      ),
+    );
+  }
 
-    // Use an AnimatedContainer for subtle state changes (like border or elevation)
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      margin: const EdgeInsets.symmetric(vertical: 4),
+  // --------------------- SELECTED PRODUCT CARD ---------------------
+  Widget _selectedProductCard(QrController controller) {
+    final item = controller.selectedProduct.value!;
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColor.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isProcessing
-              ? Colors.blue.shade300
-              : hasQr
-              ? Colors.green.shade400
-              : Colors.transparent,
-          width: isProcessing ? 2.5 : 1,
-        ),
-        boxShadow: isProcessing ? [BoxShadow(color: Colors.blue.withOpacity(0.3), blurRadius: 8)] : null,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: AppColor.primaryColor.withOpacity(0.15), blurRadius: 12)],
       ),
-      child: ProductWidget(
-        item: product,
-        onTap: onTap, // Use the provided custom onTap action
-        // Pass the processing state to the ProductWidget if it supports it
-        trailingWidget: isProcessing
-            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColor.primaryColor))
-            : Icon(
-                hasQr ? Icons.qr_code_2_rounded : Icons.add_circle_outline,
-                color: hasQr ? Colors.green : AppColor.primaryColor.withOpacity(0.7),
-              ),
-      ),
-    );
-  }
-
-  // Refactored Selected Product Card to include animation
-  Widget _buildSelectedProductCard(QrController controller) {
-    final product = controller.selectedProduct.value; // Corrected to selectedProduct
-    if (product == null) return const SizedBox();
-
-    // Fade the card out slightly when generation is successful
-    return AnimatedOpacity(
-      opacity: controller.processingProductId.value.isNotEmpty ? 0.6 : 1.0,
-      duration: const Duration(milliseconds: 300),
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 30),
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: AppColor.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: AppColor.primaryColor.withOpacity(0.2), blurRadius: 30, spreadRadius: 5)],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        product.prdNom ?? '',
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColor.primaryColor),
-                      ),
-                      if (product.prdNo != null)
-                        Text('Product N°: ${product.prdNo}', style: TextStyle(fontSize: 14, color: AppColor.primaryColor.withOpacity(0.6))),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => controller.clearSelection(),
-                  icon: const Icon(Icons.close_rounded),
-                  color: AppColor.primaryColor,
-                  style: IconButton.styleFrom(backgroundColor: AppColor.primaryColor.withOpacity(0.1)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Divider(color: AppColor.primaryColor.withOpacity(0.1)),
-            const SizedBox(height: 20),
-
-            // Generate/Display QR Section
-            if (product.prdQr != null && product.prdQr!.isNotEmpty) ...[
-              Center(
-                child: QrImageView(data: product.prdQr!, size: 160, backgroundColor: Colors.white),
-              ),
-            ] else ...[
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: Obx(
-                  () => ElevatedButton.icon(
-                    onPressed: controller.processingProductId.value.isNotEmpty
-                        ? null
-                        : () => controller.generateQrForProduct(), // Disable when processing
-                    icon: controller.processingProductId.value.isNotEmpty
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.qr_code_2_rounded),
-                    label: Text(
-                      controller.processingProductId.value.isNotEmpty ? "Generating..." : "Generate QR Code",
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColor.primaryColor,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                  ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Title & Close
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  item.prdNom ?? "",
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColor.primaryColor),
                 ),
               ),
+              IconButton(onPressed: controller.clearSelection, icon: const Icon(Icons.close_rounded)),
             ],
-          ],
-        ),
+          ),
+
+          const SizedBox(height: 8),
+          Text("Code: ${item.prdNo}"),
+
+          const SizedBox(height: 20),
+
+          // --- QR DISPLAY ---
+          if ((item.prdQr ?? "").isNotEmpty)
+            Center(
+              child: QrImageView(data: item.prdQr!, size: 150, backgroundColor: Colors.white),
+            )
+          else
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: Obx(
+                () => ElevatedButton(
+                  onPressed: controller.processingProductId.value.isNotEmpty ? null : controller.generateQrForProduct,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColor.primaryColor,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: controller.processingProductId.value.isNotEmpty
+                      ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          spacing: 10,
+                          children: [
+                            const Icon(Icons.qr_code_2_rounded, color: Colors.white, size: 24),
+                            const Text(
+                              "Generate QR",
+                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
 
-  Widget _buildEmptyState() => Center(
+  // ---------------------- EMPTY STATE -----------------------
+  Widget _emptyState() => Center(
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.inventory_2_outlined, size: 64, color: AppColor.primaryColor.withOpacity(0.3)),
-        const SizedBox(height: 16),
-        const Text('La liste est vide', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        Icon(Icons.inventory_2_outlined, size: 60, color: Colors.grey.shade400),
+        const SizedBox(height: 12),
+        const Text("La liste est vide", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
       ],
     ),
   );
 
-  // Search Modal
-  void _showSearchModal(BuildContext context, QrController controller) {
-    // Clear search on open to start fresh
+  // ------------------- SEARCH MODAL -------------------
+  void _openSearchModal(BuildContext context) {
     controller.searchController.clear();
     controller.onSearchChanged('');
 
@@ -245,110 +193,65 @@ class QrPage extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        height: MediaQuery.of(context).size.height * 0.85,
-        decoration: const BoxDecoration(
-          color: AppColor.background,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-        ),
-        child: Column(
-          children: [
-            Container(
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(color: AppColor.primaryColor.withOpacity(0.3), borderRadius: BorderRadius.circular(2)),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: AppColor.primaryColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-                    child: const Icon(Icons.search, color: AppColor.primaryColor, size: 24),
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Search products',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColor.primaryColor),
-                  ),
-                ],
+      builder: (_) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.85,
+          decoration: const BoxDecoration(
+            color: AppColor.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
               ),
-            ),
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: TextField(
-                autofocus: true,
-                controller: controller.searchController, // Use controller's TextEditingController
-                onChanged: controller.onSearchChanged, // Corrected method name
-                decoration: InputDecoration(
-                  hintText: 'Search by name, reference, or code...',
-                  hintStyle: TextStyle(color: AppColor.primaryColor.withOpacity(0.5)),
-                  prefixIcon: const Icon(Icons.search, color: AppColor.primaryColor),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                  filled: true,
-                  fillColor: AppColor.white,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  suffixIcon: Obx(
-                    () => controller.searchQuery.value.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear, color: AppColor.primaryColor),
-                            onPressed: () {
-                              controller.searchController.clear();
-                              controller.onSearchChanged('');
-                            },
-                          )
-                        : const SizedBox.shrink(),
+              const SizedBox(height: 20),
+
+              // Search bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: TextField(
+                  controller: controller.searchController,
+                  onChanged: controller.onSearchChanged,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.search, color: AppColor.primaryColor),
+                    hintText: "Search products...",
+                    filled: true,
+                    fillColor: AppColor.white,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: Obx(
-                () => controller.filteredProducts.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.search_off, size: 64, color: AppColor.primaryColor.withOpacity(0.3)),
-                            const SizedBox(height: 16),
-                            Text(
-                              controller.searchQuery.isEmpty ? 'Start typing to search' : 'No products found',
-                              style: TextStyle(fontSize: 16, color: AppColor.primaryColor.withOpacity(0.6)),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        itemCount: controller.filteredProducts.length,
-                        itemBuilder: (context, index) {
-                          final product = controller.filteredProducts[index];
 
-                          // Custom onTap logic for items in the search modal
-                          return _buildProductListItem(
-                            product,
-                            controller,
-                            onTap: () {
-                              // 1. Select the product (updates the main page)
-                              controller.selectProduct(product);
-                              // 2. Clear the search state
-                              controller.searchController.clear();
-                              controller.onSearchChanged('');
-                              // 3. Close the modal
-                              Get.back();
-                            },
-                          );
+              const SizedBox(height: 16),
+
+              // Search Results List
+              Expanded(
+                child: Obx(
+                  () => ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: controller.fullResults.length,
+                    itemBuilder: (context, index) {
+                      final product = controller.fullResults[index];
+                      return _productItem(
+                        product,
+                        controller,
+                        onTap: () {
+                          controller.selectProduct(product);
+                          Get.back();
                         },
-                      ),
+                      );
+                    },
+                  ),
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

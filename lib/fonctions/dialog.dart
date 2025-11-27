@@ -20,19 +20,56 @@ class Dialogfun {
   }
 
   void showSnackSuccess(String title, String message) {
-    _showModernSnackbar(Get.context!, title, message, SnackType.success);
+    try {
+      final context = Get.context;
+      if (context != null && context.mounted && _hasOverlay(context)) {
+        _showModernSnackbar(context, title, message, SnackType.success);
+      }
+    } catch (e) {
+      print('Failed to show success snackbar: $e');
+    }
   }
 
   void showSnackError(String title, String message) {
-    _showModernSnackbar(Get.context!, title, message, SnackType.error);
+    try {
+      final context = Get.context;
+      if (context != null && context.mounted && _hasOverlay(context)) {
+        _showModernSnackbar(context, title, message, SnackType.error);
+      }
+    } catch (e) {
+      print('Failed to show error snackbar: $e');
+    }
   }
 
   void showSnackWarning(String title, String message) {
-    _showModernSnackbar(Get.context!, title, message, SnackType.warning);
+    try {
+      final context = Get.context;
+      if (context != null && context.mounted && _hasOverlay(context)) {
+        _showModernSnackbar(context, title, message, SnackType.warning);
+      }
+    } catch (e) {
+      print('Failed to show warning snackbar: $e');
+    }
   }
 
   void showSnackInfo(String title, String message) {
-    _showModernSnackbar(Get.context!, title, message, SnackType.info);
+    try {
+      final context = Get.context;
+      if (context != null && context.mounted && _hasOverlay(context)) {
+        _showModernSnackbar(context, title, message, SnackType.info);
+      }
+    } catch (e) {
+      print('Failed to show info snackbar: $e');
+    }
+  }
+
+  /// Check if the context has an Overlay widget ancestor
+  bool _hasOverlay(BuildContext context) {
+    try {
+      return Overlay.maybeOf(context) != null;
+    } catch (e) {
+      return false;
+    }
   }
 
   Future _showModernSnackbar(BuildContext context, String title, String message, SnackType type) async {
