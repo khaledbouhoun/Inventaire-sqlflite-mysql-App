@@ -72,7 +72,12 @@ class Dialogfun {
     }
   }
 
-  Future _showModernSnackbar(BuildContext context, String title, String message, SnackType type) async {
+  Future _showModernSnackbar(
+    BuildContext context,
+    String title,
+    String message,
+    SnackType type,
+  ) async {
     final config = _getSnackConfig(type);
 
     return Get.snackbar(
@@ -89,10 +94,20 @@ class Dialogfun {
       reverseAnimationCurve: Curves.easeInOut,
       icon: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: Icon(config.icon, color: Colors.white, size: 24),
       ),
-      boxShadows: [BoxShadow(color: config.shadowColor, blurRadius: 20, offset: const Offset(0, 8), spreadRadius: 0)],
+      boxShadows: [
+        BoxShadow(
+          color: config.shadowColor,
+          blurRadius: 20,
+          offset: const Offset(0, 8),
+          spreadRadius: 0,
+        ),
+      ],
       borderColor: config.borderColor,
       borderWidth: 1,
       shouldIconPulse: true,
@@ -101,7 +116,13 @@ class Dialogfun {
     );
   }
 
-  Future _showModernDialog(BuildContext context, Function()? onTap, String title, String message, DialogType type) async {
+  Future _showModernDialog(
+    BuildContext context,
+    Function()? onTap,
+    String title,
+    String message,
+    DialogType type,
+  ) async {
     final config = _getDialogConfig(type);
 
     return await showDialog(
@@ -115,7 +136,11 @@ class Dialogfun {
           child: Container(
             constraints: const BoxConstraints(maxWidth: 400),
             decoration: BoxDecoration(
-              gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Colors.white, Colors.grey.shade50]),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Colors.white, Colors.grey.shade50],
+              ),
               borderRadius: BorderRadius.circular(24),
             ),
             child: Column(
@@ -127,7 +152,10 @@ class Dialogfun {
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     gradient: config.gradient,
-                    borderRadius: const BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
                   ),
                   child: Column(
                     children: [
@@ -136,7 +164,10 @@ class Dialogfun {
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.3),
+                            width: 2,
+                          ),
                         ),
                         child: Icon(config.icon, color: Colors.white, size: 48),
                       ),
@@ -144,7 +175,12 @@ class Dialogfun {
                       Text(
                         title,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 30,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
                       ),
                     ],
                   ),
@@ -158,7 +194,12 @@ class Dialogfun {
                       Text(
                         message,
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey.shade700, fontSize: 20, height: 1.5, letterSpacing: 0.2),
+                        style: TextStyle(
+                          color: Colors.grey.shade700,
+                          fontSize: 20,
+                          height: 1.5,
+                          letterSpacing: 0.2,
+                        ),
                       ),
                       const SizedBox(height: 32),
 
@@ -169,7 +210,14 @@ class Dialogfun {
                         decoration: BoxDecoration(
                           gradient: config.gradient,
                           borderRadius: BorderRadius.circular(16),
-                          boxShadow: [BoxShadow(color: config.shadowColor, blurRadius: 15, offset: const Offset(0, 8), spreadRadius: 0)],
+                          boxShadow: [
+                            BoxShadow(
+                              color: config.shadowColor,
+                              blurRadius: 15,
+                              offset: const Offset(0, 8),
+                              spreadRadius: 0,
+                            ),
+                          ],
                         ),
                         child: Material(
                           color: Colors.transparent,
@@ -186,10 +234,19 @@ class Dialogfun {
                                 children: [
                                   Text(
                                     "got_it".tr,
-                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white, letterSpacing: 0.5),
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                      letterSpacing: 0.5,
+                                    ),
                                   ),
                                   const SizedBox(width: 8),
-                                  Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+                                  Icon(
+                                    Icons.check_circle_outline,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
                                 ],
                               ),
                             ),
@@ -212,25 +269,41 @@ class Dialogfun {
       case DialogType.success:
         return DialogConfig(
           icon: Icons.check_circle,
-          gradient: LinearGradient(colors: [Color(0xFF4CAF50), Color(0xFF45A049)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+          gradient: LinearGradient(
+            colors: [Color(0xFF4CAF50), Color(0xFF45A049)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
           shadowColor: Color(0xFF4CAF50).withOpacity(0.3),
         );
       case DialogType.error:
         return DialogConfig(
           icon: Icons.error,
-          gradient: LinearGradient(colors: [Color(0xFFE53E3E), Color(0xFFD53F8C)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+          gradient: LinearGradient(
+            colors: [Color(0xFFE53E3E), Color(0xFFD53F8C)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
           shadowColor: Color(0xFFE53E3E).withOpacity(0.3),
         );
       case DialogType.warning:
         return DialogConfig(
           icon: Icons.warning,
-          gradient: LinearGradient(colors: [Color(0xFFFF9800), Color(0xFFFF5722)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+          gradient: LinearGradient(
+            colors: [Color(0xFFFF9800), Color(0xFFFF5722)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
           shadowColor: Color(0xFFFF9800).withOpacity(0.3),
         );
       case DialogType.info:
         return DialogConfig(
           icon: Icons.info,
-          gradient: LinearGradient(colors: [Color(0xFF2196F3), Color(0xFF1976D2)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+          gradient: LinearGradient(
+            colors: [Color(0xFF2196F3), Color(0xFF1976D2)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
           shadowColor: Color(0xFF2196F3).withOpacity(0.3),
         );
     }
@@ -279,7 +352,11 @@ class DialogConfig {
   final LinearGradient gradient;
   final Color shadowColor;
 
-  DialogConfig({required this.icon, required this.gradient, required this.shadowColor});
+  DialogConfig({
+    required this.icon,
+    required this.gradient,
+    required this.shadowColor,
+  });
 }
 
 class SnackConfig {
@@ -288,5 +365,10 @@ class SnackConfig {
   final Color borderColor;
   final Color shadowColor;
 
-  SnackConfig({required this.icon, required this.backgroundColor, required this.borderColor, required this.shadowColor});
+  SnackConfig({
+    required this.icon,
+    required this.backgroundColor,
+    required this.borderColor,
+    required this.shadowColor,
+  });
 }

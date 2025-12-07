@@ -6,7 +6,7 @@ import 'package:invontaire_local/view/widget/onlinewidget.dart';
 import 'package:invontaire_local/view/widget/productwidget.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-import 'package:invontaire_local/data/model/articles_model.dart';
+import 'package:invontaire_local/data/model/product_model.dart';
 
 class QrPage extends StatelessWidget {
   QrPage({super.key});
@@ -23,13 +23,26 @@ class QrPage extends StatelessWidget {
         backgroundColor: AppColor.background,
         elevation: 0,
         centerTitle: true,
-        title: const Text(
-          'QR Code Generator',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColor.primaryColor),
+        title: ListTile(
+          title: Text(
+            'QR Code Generator',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColor.primaryColor,
+            ),
+          ),
+          subtitle: Text(
+            'L\'emplacement : ${controller.homeController.user!.usrLempNom!}',
+            style: TextStyle(fontSize: 15, color: Colors.grey),
+          ),
         ),
         leading: IconButton(
           onPressed: () => Get.back(),
-          icon: const Icon(Icons.arrow_back_ios_new, color: AppColor.primaryColor),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: AppColor.primaryColor,
+          ),
         ),
         actions: const [MiniOnlineWidget()],
       ),
@@ -46,7 +59,11 @@ class QrPage extends StatelessWidget {
         return Column(
           children: [
             // ----------------- SELECTED PRODUCT CARD -----------------
-            Obx(() => controller.selectedProduct.value == null ? const SizedBox() : _selectedProductCard(controller)),
+            Obx(
+              () => controller.selectedProduct.value == null
+                  ? const SizedBox()
+                  : _selectedProductCard(controller),
+            ),
 
             // ---------------------- PRODUCT LIST ----------------------
             Expanded(
@@ -77,14 +94,22 @@ class QrPage extends StatelessWidget {
         icon: const Icon(Icons.search, color: Colors.white),
         label: Text(
           "Chercher ",
-          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     );
   }
 
   // ----------------------- PRODUCT ITEM -----------------------
-  Widget _productItem(Product item, QrController controller, {required VoidCallback onTap}) {
+  Widget _productItem(
+    Product item,
+    QrController controller, {
+    required VoidCallback onTap,
+  }) {
     final hasQr = item.prdQr != null && item.prdQr!.isNotEmpty;
     final isProcessing = controller.processingProductId.value == item.prdNo;
 
@@ -96,8 +121,15 @@ class QrPage extends StatelessWidget {
         item: item,
         onTap: onTap,
         trailingWidget: isProcessing
-            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-            : Icon(hasQr ? Icons.qr_code_2_rounded : Icons.add_circle_outline, color: hasQr ? Colors.green : AppColor.primaryColor),
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Icon(
+                hasQr ? Icons.qr_code_2_rounded : Icons.add_circle_outline,
+                color: hasQr ? Colors.green : AppColor.primaryColor,
+              ),
       ),
     );
   }
@@ -112,7 +144,12 @@ class QrPage extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColor.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: AppColor.primaryColor.withOpacity(0.15), blurRadius: 12)],
+        boxShadow: [
+          BoxShadow(
+            color: AppColor.primaryColor.withOpacity(0.15),
+            blurRadius: 12,
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -123,10 +160,17 @@ class QrPage extends StatelessWidget {
               Expanded(
                 child: Text(
                   item.prdNom ?? "",
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColor.primaryColor),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColor.primaryColor,
+                  ),
                 ),
               ),
-              IconButton(onPressed: controller.clearSelection, icon: const Icon(Icons.close_rounded)),
+              IconButton(
+                onPressed: controller.clearSelection,
+                icon: const Icon(Icons.close_rounded),
+              ),
             ],
           ),
 
@@ -138,7 +182,11 @@ class QrPage extends StatelessWidget {
           // --- QR DISPLAY ---
           if ((item.prdQr ?? "").isNotEmpty)
             Center(
-              child: QrImageView(data: item.prdQr!, size: 150, backgroundColor: Colors.white),
+              child: QrImageView(
+                data: item.prdQr!,
+                size: 150,
+                backgroundColor: Colors.white,
+              ),
             )
           else
             SizedBox(
@@ -146,21 +194,36 @@ class QrPage extends StatelessWidget {
               height: 48,
               child: Obx(
                 () => ElevatedButton(
-                  onPressed: controller.processingProductId.value.isNotEmpty ? null : controller.generateQrForProduct,
+                  onPressed: controller.processingProductId.value.isNotEmpty
+                      ? null
+                      : controller.generateQrForProduct,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColor.primaryColor,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: controller.processingProductId.value.isNotEmpty
-                      ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                      ? const CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        )
                       : Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           spacing: 10,
                           children: [
-                            const Icon(Icons.qr_code_2_rounded, color: Colors.white, size: 24),
+                            const Icon(
+                              Icons.qr_code_2_rounded,
+                              color: Colors.white,
+                              size: 24,
+                            ),
                             const Text(
                               "Generate QR",
-                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
                           ],
                         ),
@@ -179,7 +242,10 @@ class QrPage extends StatelessWidget {
       children: [
         Icon(Icons.inventory_2_outlined, size: 60, color: Colors.grey.shade400),
         const SizedBox(height: 12),
-        const Text("La liste est vide", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const Text(
+          "La liste est vide",
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
       ],
     ),
   );
@@ -206,7 +272,10 @@ class QrPage extends StatelessWidget {
               Container(
                 width: 40,
                 height: 4,
-                decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
               const SizedBox(height: 20),
 
@@ -217,11 +286,17 @@ class QrPage extends StatelessWidget {
                   controller: controller.searchController,
                   onChanged: controller.onSearchChanged,
                   decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.search, color: AppColor.primaryColor),
+                    prefixIcon: const Icon(
+                      Icons.search,
+                      color: AppColor.primaryColor,
+                    ),
                     hintText: "Search products...",
                     filled: true,
                     fillColor: AppColor.white,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
                   ),
                 ),
               ),

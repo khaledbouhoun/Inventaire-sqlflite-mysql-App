@@ -41,7 +41,6 @@ dependencies:
   shared_preferences: ^2.5.3
   animated_custom_dropdown: ^3.1.1
   intl: ^0.20.2
-  mobile_scanner: ^7.1.3
   qr_flutter: ^4.1.0
   image: ^4.5.4
   printing: ^5.14.2
@@ -49,6 +48,9 @@ dependencies:
   sqflite: ^2.4.2
   connectivity_plus: ^7.0.0
   path: ^1.9.1
+  qr_code_scanner_plus: ^2.0.14
+  math_expressions: ^3.1.0
+
 
 
 

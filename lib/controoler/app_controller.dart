@@ -68,11 +68,15 @@ class AppController extends GetxController {
     try {
       int countProducts = await _syncPendingProducts();
       int countGestQr = await _syncPendingGestQr();
+      int countInvontaires = await _syncPendingInvontaires();
 
       // Only attempt to show snackbars if we have a valid context with Overlay
       // This check is safe because Dialogfun.showSnackSuccess now has internal validation
-      if (countProducts > 0 || countGestQr > 0) {
-        dialogfun.showSnackSuccess("Sync Complete", "Uploaded $countProducts products and $countGestQr gestQr records successfully.");
+      if (countProducts > 0 || countGestQr > 0 || countInvontaires > 0) {
+        dialogfun.showSnackSuccess(
+          "Sync Complete",
+          "Uploaded $countProducts products, $countGestQr gestQr, and $countInvontaires invontaires successfully.",
+        );
       } else {
         print('No pending data to upload.');
       }
@@ -99,11 +103,13 @@ class AppController extends GetxController {
         final prdNo = product.prdNo;
         if (prdNo == null || prdNo.isEmpty) continue;
 
-        final response = await crud.post("${AppLink.products}/$prdNo", {'prd_qr': product.prdQr});
+        final response = await crud.post("${AppLink.products}/$prdNo", {
+          'prd_qr': product.prdQr,
+        });
 
         if (response.statusCode == 200 || response.statusCode == 201) {
           print('Uploaded product ${product.prdNo} successfully.');
-          await dbHelper.markAsUploaded(prdNo);
+          await dbHelper.markProductAsUploaded(prdNo);
           successCount++;
         }
       } catch (e) {
@@ -128,7 +134,9 @@ class AppController extends GetxController {
           'gqr_usr_no': gestQr.gqrUsrNo,
           'gqr_prd_no': gestQr.gqrPrdNo,
           'gqr_no': gestQr.gqrNo,
-          'gqr_date': gestQr.gqrDate == null ? DateTime.now().toIso8601String() : gestQr.gqrDate!.toIso8601String(),
+          'gqr_date': gestQr.gqrDate == null
+              ? DateTime.now().toIso8601String()
+              : gestQr.gqrDate!.toIso8601String(),
         });
 
         if (response.statusCode == 200 || response.statusCode == 201) {
@@ -138,6 +146,42 @@ class AppController extends GetxController {
         }
       } catch (e) {
         print('Failed to upload gestQr ${gestQr.gqrNo}: $e');
+      }
+    }
+    return successCount;
+  }
+
+  Future<int> _syncPendingInvontaires() async {
+    final pendingInvontaires = await dbHelper.getPendingInvontaies();
+
+    if (pendingInvontaires.isEmpty) {
+      print('No pending invontaires to upload.');
+      return 0;
+    }
+
+    int successCount = 0;
+    for (var invontaie in pendingInvontaires) {
+      try {
+        final response = await crud.post(AppLink.invontaies, {
+          'inv_lemp_no': invontaie.invLempNo,
+          'inv_pntg_no': invontaie.invPntgNo,
+          'inv_usr_no': invontaie.invUsrNo,
+          'inv_prd_no': invontaie.invPrdNo,
+          'inv_exp': invontaie.invExp,
+          'inv_date': invontaie.invDate == null
+              ? DateTime.now().toIso8601String()
+              : invontaie.invDate!.toIso8601String(),
+        });
+
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          print('Uploaded invontaie ${invontaie.invNo} successfully.');
+          if (invontaie.invNo != null) {
+            await dbHelper.markInvontaieAsUploaded(invontaie.invNo!);
+          }
+          successCount++;
+        }
+      } catch (e) {
+        print('Failed to upload invontaie ${invontaie.invNo}: $e');
       }
     }
     return successCount;

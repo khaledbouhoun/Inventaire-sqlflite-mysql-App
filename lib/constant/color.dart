@@ -13,4 +13,8 @@ class AppColor {
   static const Color redColor = Color(0xffc0392b);
   static const Color secendcolor = Color(0xff0d3056);
   static const Color thirdColor = Color.fromARGB(255, 255, 179, 170);
+  static const Color accentColor = Color(
+    0xFF4FC3F7,
+  ); // Example accent color (Light Blue)
+  static const Color lightGrey = Color(0xFFE0E0E0);
 }

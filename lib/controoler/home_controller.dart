@@ -1,15 +1,15 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:invontaire_local/class/crud.dart';
 import 'package:invontaire_local/constant/linkapi.dart';
 import 'package:invontaire_local/controoler/app_controller.dart';
-import 'package:invontaire_local/data/model/articles_model.dart';
-import 'package:invontaire_local/data/model/exercice_model.dart';
-import 'package:invontaire_local/data/model/dossei_model.dart';
+import 'package:invontaire_local/data/model/product_model.dart';
 import 'package:invontaire_local/data/model/gestqr.dart';
-import 'package:invontaire_local/data/model/inventaireentete_model.dart';
+import 'package:invontaire_local/data/model/invontaie_model.dart';
 import 'package:invontaire_local/data/model/settings_model.dart';
 import 'package:invontaire_local/data/model/user_model.dart';
-import 'package:invontaire_local/view/screen/details.dart';
+import 'package:invontaire_local/fonctions/dialog.dart';
+import 'package:invontaire_local/view/screen/invontaire.dart';
 import 'package:invontaire_local/view/screen/login.dart';
 import 'package:invontaire_local/view/screen/qrpage.dart';
 
@@ -18,14 +18,13 @@ class HomeController extends GetxController {
   final AppLink appLink = Get.find<AppLink>();
   final AppController appController = Get.find<AppController>();
   // final LoginController loginController = Get.put(LoginController());
-  List<InventaireEnteteModel> inventaireentetelist = <InventaireEnteteModel>[];
+  Dialogfun dialogfun = Dialogfun();
+  List<Invontaie> inventairelist = <Invontaie>[];
   RxBool isLoading = false.obs;
   RxBool isLoadingArticles = false.obs;
   RxBool loadingInventaireId = false.obs;
 
   User? user;
-  DossierModel? dossier;
-  ExerciceModel? exercice;
 
   List<Product> products = <Product>[];
   List<GestQr> gestQr = <GestQr>[];
@@ -37,26 +36,14 @@ class HomeController extends GetxController {
   void onInit() {
     super.onInit();
     print("Home controller initializing ...");
-    final args = Get.arguments ?? <String, dynamic>{};
 
+    final args = Get.arguments ?? <String, dynamic>{};
     user = args['user'] as User?;
-    // dossier = args['dossier'] as DossierModel?;
-    // exercice = args['exercice'] as ExerciceModel?;
 
     if (user == null) {
       print("Warning: Missing user (null). Returning to Login.");
-      // If there's no user provided, send user back to login screen.
-      // Use a microtask to avoid navigation during init synchronously.
       Future.microtask(() => Get.offAll(() => const Login()));
       return;
-    }
-
-    if (dossier == null) {
-      print("Info: Dossier is null. Some features may be disabled until a dossier is selected.");
-    }
-
-    if (exercice == null) {
-      print("Info: Exercice is null. Some features may be disabled until an exercice is selected.");
     }
 
     onRefresh();
@@ -79,14 +66,19 @@ class HomeController extends GetxController {
       print("🔗 GestQR URL   : ${AppLink.gestqr}/$lemp/$usr");
 
       // Fetch both requests simultaneously (faster)
-      final responses = await Future.wait([crud.get(AppLink.products), crud.get("${AppLink.gestqr}/$lemp/$usr")]);
+      final responses = await Future.wait([
+        crud.get(AppLink.products),
+        crud.get("${AppLink.gestqr}/$lemp/$usr"),
+      ]);
 
       final responseProducts = responses[0];
       final responseGestqr = responses[1];
 
       // Parse products
       if (responseProducts.statusCode == 200 && responseProducts.body is List) {
-        products = (responseProducts.body as List).map((e) => Product.fromJson(e)).toList();
+        products = (responseProducts.body as List)
+            .map((e) => Product.fromJson(e))
+            .toList();
       } else {
         products = [];
         print("⚠ No products received from API");
@@ -94,7 +86,9 @@ class HomeController extends GetxController {
 
       // Parse gestqr
       if (responseGestqr.statusCode == 200 && responseGestqr.body is List) {
-        gestQr = (responseGestqr.body as List).map((e) => GestQr.fromJson(e)).toList();
+        gestQr = (responseGestqr.body as List)
+            .map((e) => GestQr.fromJson(e))
+            .toList();
       } else {
         gestQr = [];
         print("⚠ No GestQR received from API");
@@ -122,7 +116,9 @@ class HomeController extends GetxController {
       await appController.dbHelper.insertAllProducts(products);
       products = await appController.dbHelper.getAllProducts();
 
-      print('✅ Loaded ${products.length} filtered products from local database');
+      print(
+        '✅ Loaded ${products.length} filtered products from local database',
+      );
 
       update();
     }
@@ -136,13 +132,9 @@ class HomeController extends GetxController {
     }
   }
 
-  Future<void> onTapInventaire(InventaireEnteteModel inventaire) async {
-    Get.to(() => Details(), arguments: {'inventaire': inventaire});
-  }
-
   void goToInventaireList() {
     print("goToInventaireList");
-    Get.to(() => Details());
+    Get.to(() => Invontaire());
   }
 
   void goToQrCodeSettings() {

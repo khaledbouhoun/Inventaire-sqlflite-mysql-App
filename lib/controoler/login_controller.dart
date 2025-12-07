@@ -45,8 +45,7 @@ class LoginController extends GetxController {
   Future<void> fetchUsers() async {
     print("Fetching users for login...");
     try {
-      isLoading
-      .value = true;
+      isLoading.value = true;
       // We still fetch users to populate the dropdown for selection.
       final response = await crud.get(AppLink.users);
 
@@ -54,17 +53,25 @@ class LoginController extends GetxController {
         // The response body is assumed to be a List<Map<String, dynamic>>
         final List<dynamic> data = response.body;
 
-        users.value = data.map((e) => User.fromJson(e as Map<String, dynamic>)).toList();
+        users.value = data
+            .map((e) => User.fromJson(e as Map<String, dynamic>))
+            .toList();
 
         if (users.isEmpty) {
-          dialogfun.showSnackWarning('Avertissement', 'Aucun utilisateur trouvé pour ce dossier');
+          dialogfun.showSnackWarning(
+            'Avertissement',
+            'Aucun utilisateur trouvé pour ce dossier',
+          );
         }
       } else {
         throw Exception('Server returned status code: ${response.statusCode}');
       }
     } catch (e) {
       users.clear();
-      dialogfun.showSnackError('Erreur', 'Erreur lors du chargement des utilisateurs: Impossible de se connecter au serveur.');
+      dialogfun.showSnackError(
+        'Erreur',
+        'Erreur lors du chargement des utilisateurs: Impossible de se connecter au serveur.',
+      );
       debugPrint('Error fetching users: $e');
     } finally {
       isLoading.value = false;
@@ -105,16 +112,28 @@ class LoginController extends GetxController {
           // Assuming response.body is a Map<String, dynamic> containing the logged-in User data.
 
           // Save user data (e.g., token) if necessary, and navigate to Home
-          Get.off(() => Home(), arguments: {'user': selectedUser.value});
+          Get.off(
+            () => Home(),
+            arguments: {'user': selectedUser.value, 'success': true},
+          );
         } else if (response.statusCode == 401) {
           // Unauthorized - Server explicitly stated invalid credentials
-          dialogfun.showSnackError('Erreur', 'Mot de passe ou utilisateur incorrect.');
+          dialogfun.showSnackError(
+            'Erreur',
+            'Mot de passe ou utilisateur incorrect.',
+          );
         } else {
           // Other server error
-          dialogfun.showSnackError('Erreur', 'Erreur serveur lors de la connexion. Code: ${response.statusCode}');
+          dialogfun.showSnackError(
+            'Erreur',
+            'Erreur serveur lors de la connexion. Code: ${response.statusCode}',
+          );
         }
       } catch (e) {
-        dialogfun.showSnackError('Erreur', 'Impossible de se connecter au service de connexion.');
+        dialogfun.showSnackError(
+          'Erreur',
+          'Impossible de se connecter au service de connexion.',
+        );
         debugPrint('Secure Login error: $e');
       } finally {
         isLoading.value = false;

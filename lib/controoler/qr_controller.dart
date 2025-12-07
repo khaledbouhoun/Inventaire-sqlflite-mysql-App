@@ -4,11 +4,11 @@ import 'package:invontaire_local/class/crud.dart';
 import 'package:invontaire_local/constant/linkapi.dart';
 import 'package:invontaire_local/controoler/app_controller.dart';
 import 'package:invontaire_local/controoler/home_controller.dart';
-import 'package:invontaire_local/data/model/articles_model.dart';
+import 'package:invontaire_local/data/model/product_model.dart';
 import 'package:invontaire_local/fonctions/dialog.dart';
 
 class QrController extends GetxController {
-  late final HomeController _homeController = Get.find<HomeController>();
+  late final HomeController homeController = Get.find<HomeController>();
   late final AppController _appController = Get.find<AppController>();
   late final Crud _crud = Get.find<Crud>();
   late final Dialogfun _dialogfun = Get.find<Dialogfun>();
@@ -40,7 +40,8 @@ class QrController extends GetxController {
     _setupSearchDebounce();
 
     scrollController.addListener(() {
-      if (scrollController.position.pixels >= scrollController.position.maxScrollExtent - 200) {
+      if (scrollController.position.pixels >=
+          scrollController.position.maxScrollExtent - 200) {
         loadMore();
       }
     });
@@ -81,7 +82,7 @@ class QrController extends GetxController {
   void _loadProducts() {
     isLoading.value = true;
 
-    products.assignAll(_homeController.products);
+    products.assignAll(homeController.products);
 
     // show full data before search
     fullResults.assignAll(products);
@@ -98,7 +99,11 @@ class QrController extends GetxController {
 
   void _setupSearchDebounce() {
     print("--Setting up search debounce");
-    debounce(searchQuery, (_) => performOptimizedSearch(), time: const Duration(milliseconds: 200));
+    debounce(
+      searchQuery,
+      (_) => performOptimizedSearch(),
+      time: const Duration(milliseconds: 200),
+    );
   }
 
   void onSearchChanged(String value) {
@@ -162,9 +167,26 @@ class QrController extends GetxController {
     processingProductId.value = prod.prdNo ?? '';
 
     try {
-      prod.prdQr = "${prod.prdNo} / ${prod.prdNom}";
+      String cleanName = prod.prdNom ?? "No Name";
 
-      await _appController.dbHelper.insertGestQrAndProductInTransaction(prod, _homeController.user!.usrNo!, _homeController.user!.usrLemp!);
+      if (prod.prdNom != null) {
+        final qtyRegex = RegExp(
+          r'/\s*Qte\s*[:=]?\s*(\d+)\s*$',
+          caseSensitive: false,
+        );
+        final match = qtyRegex.firstMatch(prod.prdNom!);
+        if (match != null) {
+          cleanName = prod.prdNom!.replaceAll(qtyRegex, '').trim();
+        }
+      }
+      print("cleanName : $cleanName");
+      prod.prdQr = "${prod.prdNo} / $cleanName";
+
+      await _appController.dbHelper.insertGestQrAndProductInTransaction(
+        prod,
+        homeController.user!.usrNo!,
+        homeController.user!.usrLemp!,
+      );
 
       _updateProductInLists(prod);
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:invontaire_local/constant/color.dart';
 import 'package:invontaire_local/controoler/home_controller.dart';
+import 'package:invontaire_local/data/model/user_model.dart';
 import 'package:invontaire_local/fonctions/alertexitapp.dart';
 import 'package:invontaire_local/view/widget/Goto_widget.dart';
 import 'package:invontaire_local/view/widget/onlinewidget.dart';
@@ -11,61 +12,77 @@ class Home extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final controller = Get.put(HomeController());
+    final args = Get.arguments ?? <String, dynamic>{};
+    if (args['success'] == true) {
+      controller.dialogfun.showSnackSuccess('Succes', ' Pointage 1 / Souda ');
+    }
     return GetBuilder<HomeController>(
-      init: HomeController(),
       builder: (controller) {
         return Scaffold(
           backgroundColor: AppColor.background,
           appBar: AppBar(
+            centerTitle: true,
+            title: Text(
+              '${controller.user?.usrPntgNom ?? ''} / ${controller.user?.usrLempNom ?? ''}',
+              style: TextStyle(
+                color: AppColor.primaryColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             backgroundColor: AppColor.background,
             toolbarHeight: 80,
-            leadingWidth: 200,
             elevation: 0,
             scrolledUnderElevation: 0,
-            leading: Row(
-              mainAxisSize: MainAxisSize.max,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: controller.onRefresh,
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColor.white,
-                          border: Border.all(color: AppColor.primaryColor.withOpacity(0.3), width: 1),
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [BoxShadow(color: AppColor.primaryColor.withOpacity(0.1), blurRadius: 12, offset: const Offset(0, 4))],
+            leading: PopupMenuButton<String>(
+              icon: Icon(Icons.menu, color: AppColor.primaryColor, size: 28),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              color: AppColor.background,
+              elevation: 5,
+              padding: EdgeInsets.symmetric(vertical: 5),
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'refresh',
+                  child: Row(
+                    children: [
+                      Icon(Icons.refresh, color: AppColor.primaryColor),
+                      SizedBox(width: 10),
+                      Text(
+                        'Refresh',
+                        style: TextStyle(
+                          color: AppColor.primaryColor,
+                          fontWeight: FontWeight.bold,
                         ),
-                        child: const Icon(Icons.refresh_outlined, color: AppColor.primaryColor, size: 24),
                       ),
-                    ),
+                    ],
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: controller.onLogout,
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColor.white,
-                          border: Border.all(color: AppColor.primaryColor.withOpacity(0.3), width: 1),
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [BoxShadow(color: AppColor.primaryColor.withOpacity(0.1), blurRadius: 12, offset: const Offset(0, 4))],
+                PopupMenuItem(
+                  value: 'logout',
+                  child: Row(
+                    children: [
+                      Icon(Icons.logout, color: AppColor.primaryColor),
+                      SizedBox(width: 10),
+                      Text(
+                        'Logout',
+                        style: TextStyle(
+                          color: AppColor.primaryColor,
+                          fontWeight: FontWeight.bold,
                         ),
-                        child: const Icon(Icons.logout_outlined, color: AppColor.primaryColor, size: 24),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ],
+              onSelected: (value) {
+                if (value == 'refresh') {
+                  controller.onRefresh();
+                } else if (value == 'logout') {
+                  controller.onLogout();
+                }
+              },
             ),
             actions: [OnlineWidget()],
           ),
@@ -78,12 +95,26 @@ class Home extends StatelessWidget {
                 backgroundColor: AppColor.background,
                 child: Obx(() {
                   return controller.isLoading.value
-                      ? const Center(child: CircularProgressIndicator(color: AppColor.primaryColor, strokeWidth: 2))
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: AppColor.primaryColor,
+                            strokeWidth: 2,
+                          ),
+                        )
                       : // Show settings widget at the top
                         Padding(
                           padding: const EdgeInsets.all(20),
                           child: Column(
-                            children: [GotoWidget(text: "Génération Code Qr", onTap: controller.goToQrCodeSettings)],
+                            children: [
+                              GotoWidget(
+                                text: "Liste Inventaire",
+                                onTap: controller.goToInventaireList,
+                              ),
+                              GotoWidget(
+                                text: "Génération Code Qr",
+                                onTap: controller.goToQrCodeSettings,
+                              ),
+                            ],
                           ),
                         );
                 }),

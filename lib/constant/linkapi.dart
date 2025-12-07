@@ -24,15 +24,22 @@ class AppLink {
   // Product Endpoints
   // ===============================
   static const String products = "$server/products"; // GET list or POST create
-  static const String importProducts = "$server/products/import"; // POST import Excel
+  static const String importProducts =
+      "$server/products/import"; // POST import Excel
 
   // ===============================
   // Lemplacement Endpoints
   // ===============================
-  static const String lemplacements = "$server/lemplacements"; // GET all, POST create
+  static const String lemplacements =
+      "$server/lemplacements"; // GET all, POST create
 
   // ===============================
   // Gestqr Endpoints
   // ===============================
   static const String gestqr = "$server/gestqr"; // GET all, POST create
+
+  // ===============================
+  // Invontaie Endpoints
+  // ===============================
+  static const String invontaies = "$server/invontaies"; // GET all, POST create
 }
