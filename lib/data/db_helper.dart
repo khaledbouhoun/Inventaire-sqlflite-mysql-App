@@ -24,18 +24,16 @@ class DBHelper {
 
     // 1. Get the safe internal path (Works on Android & iOS)
     final dbPath = await getDatabasesPath();
-    final path = join(dbPath, 'zakawatt_inventaire.db');
+    final path = join(dbPath, 'zakawatt_inventaire_Database.db');
 
     print("Database path = $path");
 
     // 2. Open the database
     return await openDatabase(
-      '/storage/emulated/0/Download/data/db2.db',
-      // path,
-      version: 2, // Incremented version to trigger upgrade
+      path,
+      version: 1,
       onConfigure: _onConfigure, // Essential for Foreign Keys
       onCreate: _onCreate,
-      onUpgrade: _onUpgrade,
     );
   }
 
@@ -68,8 +66,7 @@ class DBHelper {
         gqr_prd_no TEXT,
         gqr_date TEXT,
         is_uploaded INTEGER DEFAULT 0,
-        PRIMARY KEY (gqr_lemp_no, gqr_usr_no, gqr_no),
-        FOREIGN KEY (gqr_prd_no) REFERENCES products(prd_no) ON DELETE CASCADE ON UPDATE CASCADE
+        PRIMARY KEY (gqr_lemp_no, gqr_usr_no, gqr_no)
       )
     ''');
 
@@ -86,59 +83,12 @@ class DBHelper {
         inv_prd_no TEXT,
         inv_prd_nom TEXT,
         inv_exp TEXT,
+        inv_qte REAL,
         inv_date TEXT,
         is_uploaded INTEGER DEFAULT 0
       )
     ''');
     print("------- created all tables successfully -------");
-  }
-
-  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    print("Upgrading database from version $oldVersion to $newVersion");
-
-    if (oldVersion < 2) {
-      // Create gestqr table if it doesn't exist
-      await db.execute('''
-        CREATE TABLE IF NOT EXISTS gestqr (
-          gqr_no INTEGER,
-          gqr_lemp_no INTEGER,
-          gqr_usr_no INTEGER,
-          gqr_prd_no TEXT,
-          gqr_date TEXT,
-          is_uploaded INTEGER DEFAULT 0,
-          PRIMARY KEY (gqr_lemp_no, gqr_usr_no, gqr_no),
-          FOREIGN KEY (gqr_prd_no) REFERENCES products(prd_no) ON DELETE CASCADE ON UPDATE CASCADE
-        )
-      ''');
-      print("Created gestqr table");
-
-      // Create invontaie table if it doesn't exist
-      await db.execute('''
-        CREATE TABLE IF NOT EXISTS invontaie (
-          inv_no INTEGER PRIMARY KEY AUTOINCREMENT,
-          inv_lemp_no INTEGER,
-          inv_pntg_no INTEGER,
-          inv_usr_no INTEGER,
-          inv_prd_no TEXT,
-          inv_exp TEXT,
-          inv_date TEXT,
-          is_uploaded INTEGER DEFAULT 0
-        )
-      ''');
-      print("Created invontaie table");
-
-      // Add is_uploaded column to products if it doesn't exist
-      try {
-        await db.execute(
-          'ALTER TABLE products ADD COLUMN uploaded INTEGER DEFAULT 0',
-        );
-        print("Added uploaded column to products table");
-      } catch (e) {
-        print("uploaded column already exists in products table or error: $e");
-      }
-
-      print("Upgraded DB to version 2");
-    }
   }
 
   // ========================= GEST QR METHODS =========================
@@ -403,48 +353,54 @@ class DBHelper {
 
   // ========================= UTILS (DEBUGGING) =========================
 
-  Future<void> insertGestQrAndProductInTransaction(
+  Future<bool> insertGestQrAndProductInTransaction(
     Product product,
     int gqrUsrNo,
     int gqrLempNo,
   ) async {
-    final db = await database;
+    try {
+      final db = await database;
 
-    await db.transaction((txn) async {
-      // Compute next gqr_no directly in SQL
-      final result = await txn.rawQuery(
-        '''
+      await db.transaction((txn) async {
+        // Compute next gqr_no directly in SQL
+        final result = await txn.rawQuery(
+          '''
       SELECT COALESCE(MAX(gqr_no), 0) + 1 as nextNo
       FROM gestqr
       WHERE gqr_lemp_no = ? AND gqr_usr_no = ?
       ''',
-        [gqrLempNo, gqrUsrNo],
-      );
-      int nextNo = result.first['nextNo'] as int;
+          [gqrLempNo, gqrUsrNo],
+        );
+        int nextNo = result.first['nextNo'] as int;
 
-      // Insert or replace product
-      await txn.insert(
-        'products',
-        product.toJson(),
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+        // Insert or replace product
+        await txn.insert(
+          'products',
+          product.toJson(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
 
-      // Insert gestqr
-      final gestQr = GestQr(
-        gqrLempNo: gqrLempNo,
-        gqrUsrNo: gqrUsrNo,
-        gqrPrdNo: product.prdNo!,
-        gqrNo: nextNo,
-        gqrDate: DateTime.now(),
-        isUploaded: 0,
-      );
+        // Insert gestqr
+        final gestQr = GestQr(
+          gqrLempNo: gqrLempNo,
+          gqrUsrNo: gqrUsrNo,
+          gqrPrdNo: product.prdNo!,
+          gqrNo: nextNo,
+          gqrDate: DateTime.now(),
+          isUploaded: 0,
+        );
 
-      await txn.insert(
-        'gestqr',
-        gestQr.toJson(),
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
-    });
+        await txn.insert(
+          'gestqr',
+          gestQr.toJson(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      });
+      return true;
+    } catch (e) {
+      print("Error inserting gestqr and product: $e");
+      return false;
+    }
   }
 
   // Use this ONLY when you want to extract the DB for checking on PC

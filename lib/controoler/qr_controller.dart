@@ -167,40 +167,50 @@ class QrController extends GetxController {
     processingProductId.value = prod.prdNo ?? '';
 
     try {
-      String cleanName = prod.prdNom ?? "No Name";
+      // String cleanName = prod.prdNom ?? "No Name";
 
-      if (prod.prdNom != null) {
-        final qtyRegex = RegExp(
-          r'/\s*Qte\s*[:=]?\s*(\d+)\s*$',
-          caseSensitive: false,
-        );
-        final match = qtyRegex.firstMatch(prod.prdNom!);
-        if (match != null) {
-          cleanName = prod.prdNom!.replaceAll(qtyRegex, '').trim();
-        }
-      }
-      print("cleanName : $cleanName");
-      prod.prdQr = "${prod.prdNo} / $cleanName";
-
-      await _appController.dbHelper.insertGestQrAndProductInTransaction(
-        prod,
-        homeController.user!.usrNo!,
-        homeController.user!.usrLemp!,
+      // if (prod.prdNom != null) {
+      //   final qtyRegex = RegExp(
+      //     r'/\s*Qte\s*[:=]?\s*(\d+)\s*$',
+      //     caseSensitive: false,
+      //   );
+      //   final match = qtyRegex.firstMatch(prod.prdNom!);
+      //   if (match != null) {
+      //     cleanName = prod.prdNom!.replaceAll(qtyRegex, '').trim();
+      //   }
+      // }
+      // print("cleanName : $cleanName");
+      // prod.prdQr = "${prod.prdNo} / $cleanName";
+      final Map<String, String> nameAndQty = _appController.removeQtyFromName(
+        prod.prdNom ?? "",
       );
+      prod.prdQr = "${prod.prdNo} / ${nameAndQty['cleanName']}";
+
+      bool success = await _appController.dbHelper
+          .insertGestQrAndProductInTransaction(
+            prod,
+            homeController.user!.usrNo!,
+            homeController.user!.usrLemp!,
+          );
+      if (success) {
+        _showSuccessSnackbar("QR generation enregistré local success");
+      } else {
+        _showErrorSnackbar("Error QR generation local");
+      }
 
       _updateProductInLists(prod);
 
       await Future.delayed(const Duration(milliseconds: 500));
       selectedProduct.value = null;
 
-      if (_appController.isOnline.value) {
+      if (success && _appController.isOnline.value) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _appController.syncPendingData();
         });
       }
     } catch (e) {
       print("Error generating QR: $e");
-      _dialogfun.showSnackError("Error", "Failed to generate QR: $e");
+      _dialogfun.showSnackError("Error", "Error QR generation: $e");
     } finally {
       processingProductId.value = '';
     }
@@ -220,6 +230,56 @@ class QrController extends GetxController {
     products.refresh();
     fullResults.refresh();
     visibleResults.refresh();
+  }
+
+  void _showSuccessSnackbar(String message) {
+    if (Get.context != null) {
+      ScaffoldMessenger.of(Get.context!).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white),
+              const SizedBox(width: 10),
+              Expanded(child: Text(message)),
+            ],
+          ),
+          backgroundColor: Colors.green.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          margin: const EdgeInsets.all(10),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } else {
+      print("Success: $message");
+    }
+  }
+
+  void _showErrorSnackbar(String message) {
+    if (Get.context != null) {
+      ScaffoldMessenger.of(Get.context!).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white),
+              const SizedBox(width: 10),
+              Expanded(child: Text(message)),
+            ],
+          ),
+          backgroundColor: Colors.red.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          margin: const EdgeInsets.all(10),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } else {
+      print("Error: $message");
+    }
   }
 
   // Selection control

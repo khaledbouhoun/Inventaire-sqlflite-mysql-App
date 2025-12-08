@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:invontaire_local/class/crud.dart';
-import 'package:invontaire_local/constant/color.dart';
 import 'package:invontaire_local/constant/linkapi.dart';
 import 'package:invontaire_local/controoler/app_controller.dart';
 import 'package:invontaire_local/controoler/home_controller.dart';
@@ -30,7 +29,7 @@ class InvontaireController extends GetxController {
   Rx<Product?> selectedArticle = Rx<Product?>(null);
 
   // ========== Lists ==========
-  List<Invontaie> inventaireDetaileList = <Invontaie>[];
+  RxList<Invontaie> inventaireDetaileList = <Invontaie>[].obs;
   List<Product?> products = <Product?>[];
   List<Product?> filteredProducts = <Product?>[];
 
@@ -65,6 +64,7 @@ class InvontaireController extends GetxController {
       buySettings = homeController.buySettings;
       sellSettings = homeController.sellSettings;
       products = homeController.products;
+
       filteredProducts = [];
 
       await fetchInvontaires();
@@ -79,13 +79,16 @@ class InvontaireController extends GetxController {
     update();
     try {
       // Always load from local database first
-      inventaireDetaileList = await appController.dbHelper.getAllInvontaies();
+      inventaireDetaileList.value = await appController.dbHelper
+          .getAllInvontaies();
       print("Loaded ${inventaireDetaileList.length} invontaires from local DB");
 
       // If online, sync with server
       if (appController.isOnline.value) {
         try {
-          var response = await crud.get(AppLink.invontaies);
+          var response = await crud.get(
+            '${AppLink.invontaies}?usr_no=${user?.usrNo}&lemp_no=${user?.usrLemp}&pntg_no=${user?.usrPntg}',
+          );
           if (response.statusCode == 200 || response.statusCode == 201) {
             var data = response.body;
             if (data is List) {
@@ -96,7 +99,7 @@ class InvontaireController extends GetxController {
               await appController.dbHelper.insertAllInvontaie(
                 serverInvontaires,
               );
-              inventaireDetaileList = await appController.dbHelper
+              inventaireDetaileList.value = await appController.dbHelper
                   .getAllInvontaies();
               print(
                 "Synced ${inventaireDetaileList.length} invontaires from server",
@@ -113,6 +116,22 @@ class InvontaireController extends GetxController {
     } catch (e) {
       print("Error fetching invontaires: $e");
     } finally {
+      // Sort by date descending, handling nulls
+      inventaireDetaileList.sort((b, a) {
+        if (a.invDate == null && b.invDate == null) return 0;
+        if (a.invDate == null) return -1;
+        if (b.invDate == null) return 1;
+        return a.invDate!.compareTo(b.invDate!);
+      });
+
+      for (var e in inventaireDetaileList) {
+        if (e.invPrdNom != null) {
+          e.invPrdNom = appController.removeQtyFromName(
+            e.invPrdNom!,
+          )["cleanName"];
+        }
+      }
+
       isLoading.value = false;
       update();
     }
@@ -141,6 +160,7 @@ class InvontaireController extends GetxController {
           invUsrNo: user?.usrNo,
           invPrdNo: selectedArticle.value!.prdNo,
           invExp: quantityController.text,
+          invQte: calculate(quantityController.text),
           invDate: DateTime.now(),
           isUploaded: 0, // Mark as pending upload
         );
@@ -153,6 +173,7 @@ class InvontaireController extends GetxController {
           invUsrNo: existingInvontaie.invUsrNo,
           invPrdNo: existingInvontaie.invPrdNo,
           invExp: quantityController.text,
+          invQte: calculate(quantityController.text),
           invDate: existingInvontaie.invDate,
           isUploaded: 0, // Mark as pending upload
         );
@@ -168,41 +189,7 @@ class InvontaireController extends GetxController {
 
         // If online, try to sync to server
         if (appController.isOnline.value) {
-          try {
-            Response response;
-            if (existingInvontaie == null) {
-              Map<String, dynamic> data = {
-                "inv_lemp_no": user?.usrLemp,
-                "inv_pntg_no": user?.usrPntg,
-                "inv_usr_no": user?.usrNo,
-                "inv_prd_no": selectedArticle.value!.prdNo,
-                "inv_exp": quantityController.text,
-                "inv_date": DateTime.now().toIso8601String(),
-              };
-              response = await crud.post(AppLink.invontaies, data);
-            } else {
-              Map<String, dynamic> data = {"inv_exp": quantityController.text};
-              response = await crud.post(
-                "${AppLink.invontaies}/${existingInvontaie.invNo}",
-                data,
-              );
-            }
-
-            if (response.statusCode == 200 || response.statusCode == 201) {
-              // Mark as uploaded in local DB
-              if (invontaieToSave.invNo != null) {
-                await appController.dbHelper.markInvontaieAsUploaded(
-                  invontaieToSave.invNo!,
-                );
-              }
-              _showSuccessSnackbar("Item synced to server");
-            }
-          } catch (e) {
-            print("Error syncing to server: $e");
-            _showSuccessSnackbar("Item saved locally (will sync when online)");
-          }
-        } else {
-          _showSuccessSnackbar("Item saved locally (will sync when online)");
+          appController.syncPendingInvontaies();
         }
 
         clearSelection();
@@ -214,6 +201,7 @@ class InvontaireController extends GetxController {
       _showErrorSnackbar("Error saving: $e");
     } finally {
       isSaving.value = false;
+      inventaireDetaileList.refresh();
       update();
     }
   }
@@ -267,10 +255,19 @@ class InvontaireController extends GetxController {
       update();
       return;
     }
-
-    filteredProducts = products.where((article) {
-      return _matchesSearchQuery(article);
-    }).toList();
+    filteredProducts = products
+        .where((article) => _matchesSearchQuery(article))
+        .map(
+          (p) => Product(
+            prdNo: p!.prdNo,
+            prdNom: p.prdNom != null
+                ? appController.removeQtyFromName(p.prdNom!)["cleanName"]
+                : p.prdNom,
+            prdQr: p.prdQr,
+            // copy other fields as needed
+          ),
+        )
+        .toList();
 
     _sortSearchResults();
     update();
@@ -329,17 +326,9 @@ class InvontaireController extends GetxController {
     }
   }
 
-  Product? _searchInBarcodes(String result) {
-    print("--searching in barcodes");
-    try {
-      return products.firstWhere((product) {
-        print('${product?.prdQr} compre with {$result}');
-        return product?.prdQr?.contains(result) ?? false;
-      });
-    } catch (e) {
-      print("Search in barcodes error: $e");
-      return null;
-    }
+  Product? _searchInBarcodes(String qr) {
+    String qrCode = qr.split('/')[0].trim();
+    return products.firstWhere((product) => product?.prdNo == qrCode);
   }
 
   // ========== Helpers ==========
@@ -393,26 +382,21 @@ class InvontaireController extends GetxController {
     }
   }
 
-  String safeCalculate(String expr) {
+  double calculate(String expr) {
     try {
-      // 1. إنشاء Parser (محلل)
       Parser p = Parser();
-
-      // 2. تحليل التعبير إلى شجرة (Expression object)
       Expression exp = p.parse(expr);
-
-      // 3. إنشاء ContextModel (للمتغيرات إن وجدت، هنا لا نحتاجها)
       ContextModel cm = ContextModel();
-
-      // 4. تقييم التعبير. يتم تطبيق أسبقية العمليات تلقائيًا.
       double eval = exp.evaluate(EvaluationType.REAL, cm);
-
-      return eval.toStringAsFixed(2);
+      return eval;
     } catch (e) {
-      // معالجة الأخطاء (مثل تعبير غير صالح)
       print("Evaluation Error: $e");
-      return '0.00';
+      return 0.00;
     }
+  }
+
+  String formatNumber(double number) {
+    return number.toStringAsFixed(number % 1 == 0 ? 0 : 2);
   }
 
   void onLogout() {

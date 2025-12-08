@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -31,6 +33,7 @@ class AppController extends GetxController {
     // Defer sync until the widget tree is ready (context is available)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       syncPendingData();
+      syncPendingInvontaies();
     });
   }
 
@@ -47,6 +50,7 @@ class AppController extends GetxController {
         status.contains(ConnectivityResult.wifi) ||
         status.contains(ConnectivityResult.ethernet) ||
         status.contains(ConnectivityResult.mobile);
+    // final result = await InternetAddress.lookup('google.com');
 
     if (isOnline.value != nowOnline) {
       isOnline.value = nowOnline;
@@ -54,6 +58,7 @@ class AppController extends GetxController {
 
       if (nowOnline) {
         await syncPendingData();
+        await syncPendingInvontaies();
       } else {
         print('Offline mode: sync paused.');
       }
@@ -68,14 +73,13 @@ class AppController extends GetxController {
     try {
       int countProducts = await _syncPendingProducts();
       int countGestQr = await _syncPendingGestQr();
-      int countInvontaires = await _syncPendingInvontaires();
 
       // Only attempt to show snackbars if we have a valid context with Overlay
       // This check is safe because Dialogfun.showSnackSuccess now has internal validation
-      if (countProducts > 0 || countGestQr > 0 || countInvontaires > 0) {
+      if (countProducts > 0 || countGestQr > 0) {
         dialogfun.showSnackSuccess(
           "Sync Complete",
-          "Uploaded $countProducts products, $countGestQr gestQr, and $countInvontaires invontaires successfully.",
+          "Uploaded $countProducts products, $countGestQr gestQr successfully.",
         );
       } else {
         print('No pending data to upload.');
@@ -151,40 +155,63 @@ class AppController extends GetxController {
     return successCount;
   }
 
-  Future<int> _syncPendingInvontaires() async {
-    final pendingInvontaires = await dbHelper.getPendingInvontaies();
+  Future<void> syncPendingInvontaies() async {
+    if (isUploading.value || !isOnline.value) return;
+    isUploading.value = true;
+    try {
+      final pendingInvontaies = await dbHelper.getPendingInvontaies();
 
-    if (pendingInvontaires.isEmpty) {
-      print('No pending invontaires to upload.');
-      return 0;
-    }
-
-    int successCount = 0;
-    for (var invontaie in pendingInvontaires) {
-      try {
-        final response = await crud.post(AppLink.invontaies, {
-          'inv_lemp_no': invontaie.invLempNo,
-          'inv_pntg_no': invontaie.invPntgNo,
-          'inv_usr_no': invontaie.invUsrNo,
-          'inv_prd_no': invontaie.invPrdNo,
-          'inv_exp': invontaie.invExp,
-          'inv_date': invontaie.invDate == null
-              ? DateTime.now().toIso8601String()
-              : invontaie.invDate!.toIso8601String(),
-        });
-
-        if (response.statusCode == 200 || response.statusCode == 201) {
-          print('Uploaded invontaie ${invontaie.invNo} successfully.');
-          if (invontaie.invNo != null) {
-            await dbHelper.markInvontaieAsUploaded(invontaie.invNo!);
-          }
-          successCount++;
-        }
-      } catch (e) {
-        print('Failed to upload invontaie ${invontaie.invNo}: $e');
+      if (pendingInvontaies.isEmpty) {
+        print('No pending invontaies to upload.');
+        return;
       }
+
+      for (var invontaie in pendingInvontaies) {
+        try {
+          final response = await crud.post(AppLink.invontaies, {
+            'inv_lemp_no': invontaie.invLempNo,
+            'inv_pntg_no': invontaie.invPntgNo,
+            'inv_usr_no': invontaie.invUsrNo,
+            'inv_prd_no': invontaie.invPrdNo,
+            'inv_exp': invontaie.invExp,
+            'inv_qte': invontaie.invQte,
+            'inv_date': invontaie.invDate == null
+                ? DateTime.now().toIso8601String()
+                : invontaie.invDate!.toIso8601String(),
+          });
+
+          if (response.statusCode == 200 || response.statusCode == 201) {
+            print('Uploaded invontaie ${invontaie.invNo} successfully.');
+            if (invontaie.invNo != null) {
+              await dbHelper.markInvontaieAsUploaded(invontaie.invNo!);
+            }
+          }
+        } catch (e) {
+          print('Failed to upload invontaie ${invontaie.invNo}: $e');
+        }
+      }
+    } catch (e) {
+      print('Failed to upload invontaie: $e');
+    } finally {
+      isUploading.value = false;
     }
-    return successCount;
+  }
+
+  Map<String, String> removeQtyFromName(String name) {
+    String qtyText = "";
+    String cleanName = name;
+
+    final qtyRegex = RegExp(
+      r'/\s*Qte\s*[:=]?\s*(\d+)\s*$',
+      caseSensitive: false,
+    );
+    final match = qtyRegex.firstMatch(name);
+    if (match != null) {
+      qtyText = match.group(0) ?? "";
+      // Extract clean name without modifying the original
+      cleanName = name.replaceAll(qtyRegex, '').trim();
+    }
+    return {'qtyText': qtyText, 'cleanName': cleanName};
   }
 
   // /// ------------------- Optional: Sync server products -------------------

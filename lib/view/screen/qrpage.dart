@@ -23,18 +23,20 @@ class QrPage extends StatelessWidget {
         backgroundColor: AppColor.background,
         elevation: 0,
         centerTitle: true,
+
+        toolbarHeight: Get.height * 0.1,
         title: ListTile(
           title: Text(
             'QR Code Generator',
             style: TextStyle(
-              fontSize: 20,
+              fontSize: Get.width * 0.05,
               fontWeight: FontWeight.bold,
               color: AppColor.primaryColor,
             ),
           ),
           subtitle: Text(
             'L\'emplacement : ${controller.homeController.user!.usrLempNom!}',
-            style: TextStyle(fontSize: 15, color: Colors.grey),
+            style: TextStyle(fontSize: Get.width * 0.03, color: Colors.grey),
           ),
         ),
         leading: IconButton(

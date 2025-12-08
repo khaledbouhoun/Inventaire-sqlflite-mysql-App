@@ -4,40 +4,41 @@ import 'package:get/get.dart';
 import 'package:invontaire_local/constant/color.dart';
 import 'package:invontaire_local/controoler/invontaire_controller.dart';
 import 'package:invontaire_local/view/widget/InventaireWidget.dart';
+import 'package:invontaire_local/view/widget/onlinewidget.dart';
 
-class Invontaire extends StatelessWidget {
+class Invontaire extends GetView<InvontaireController> {
   const Invontaire({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<InvontaireController>(
-      init: InvontaireController(),
-      builder: (controller) {
-        return Scaffold(
-          backgroundColor: AppColor.background,
-          appBar: AppBar(
-            backgroundColor: AppColor.background,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            centerTitle: true,
-            title: Text(
-              '${controller.user?.usrPntgNom ?? ''} / ${controller.user?.usrLempNom ?? ''}',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppColor.primaryColor,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            leading: IconButton(
-              onPressed: () => Get.back(),
-              icon: Icon(
-                Icons.arrow_back_ios_new,
-                color: AppColor.primaryColor,
-              ),
-            ),
+    Get.lazyPut(() => InvontaireController());
+
+    return Scaffold(
+      backgroundColor: AppColor.background,
+      appBar: AppBar(
+        backgroundColor: AppColor.background,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: true,
+        title: Text(
+          'Invontaire',
+          // '${controller.user?.usrPntgNom ?? ''} / ${controller.user?.usrLempNom ?? ''}',
+          style: TextStyle(
+            fontSize: Get.width * 0.045,
+            fontWeight: FontWeight.bold,
+            color: AppColor.primaryColor,
+            overflow: TextOverflow.ellipsis,
           ),
-          body: SafeArea(
+        ),
+        leading: IconButton(
+          onPressed: () => Get.back(),
+          icon: Icon(Icons.arrow_back_ios_new, color: AppColor.primaryColor),
+        ),
+        actions: [MiniOnlineWidget()],
+      ),
+      body: GetBuilder<InvontaireController>(
+        builder: (controller) {
+          return SafeArea(
             child: Center(
               child: Obx(() {
                 return controller.isLoading.value
@@ -53,18 +54,23 @@ class Invontaire extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Visibility(
-                              visible: controller.selectedArticle.value != null,
-                              child: _buildSelectedArticleCard(controller),
+                            Obx(
+                              () => Visibility(
+                                visible:
+                                    controller.selectedArticle.value != null,
+                                child: _buildSelectedArticleCard(controller),
+                              ),
                             ),
                             const SizedBox(height: 24),
                             controller.inventaireDetaileList.isEmpty
                                 ? _buildEmptyState(context, controller)
                                 : ListView.builder(
                                     itemBuilder: (_, index) {
-                                      return InventaireWidget(
-                                        item: controller
-                                            .inventaireDetaileList[index],
+                                      return Obx(
+                                        () => InventaireWidget(
+                                          item: controller
+                                              .inventaireDetaileList[index],
+                                        ),
                                       );
                                     },
                                     itemCount:
@@ -78,53 +84,49 @@ class Invontaire extends StatelessWidget {
                       );
               }),
             ),
-          ),
+          );
+        },
+      ),
 
-          resizeToAvoidBottomInset: false,
-          floatingActionButtonLocation:
-              FloatingActionButtonLocation.centerDocked,
-          bottomNavigationBar: Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom > 0 ? 0 : 16.0,
-            ),
-            child: GetBuilder<InvontaireController>(
-              builder: (controller) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    FloatingActionButton.extended(
-                      heroTag: 'searchByName',
-                      onPressed: () => showSearchDialog(context, controller),
-                      backgroundColor: AppColor.primaryColor,
-                      icon: const Icon(
-                        Icons.person_search,
-                        color: AppColor.white,
-                      ),
-                      label: const Text(
-                        'Search by Name / Ref',
-                        style: TextStyle(
-                          color: AppColor.white,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
+      resizeToAvoidBottomInset: false,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom > 0 ? 0 : 16.0,
+        ),
+        child: GetBuilder<InvontaireController>(
+          builder: (controller) => Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                FloatingActionButton.extended(
+                  heroTag: 'searchByName',
+                  onPressed: () => showSearchDialog(context, controller),
+                  backgroundColor: AppColor.primaryColor,
+                  icon: const Icon(Icons.person_search, color: AppColor.white),
+                  label: const Text(
+                    'Search by Name / Ref',
+                    style: TextStyle(
+                      color: AppColor.white,
+                      fontWeight: FontWeight.w400,
                     ),
-                    FloatingActionButton(
-                      heroTag: 'searchByQR',
-                      onPressed: () => controller.scanQRCode(),
-                      backgroundColor: AppColor.primaryColor,
-                      child: const Icon(
-                        Icons.qr_code_scanner,
-                        color: AppColor.white,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+                FloatingActionButton(
+                  heroTag: 'searchByQR',
+                  onPressed: () => controller.scanQRCode(),
+                  backgroundColor: AppColor.primaryColor,
+                  child: const Icon(
+                    Icons.qr_code_scanner,
+                    color: AppColor.white,
+                  ),
+                ),
+              ],
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -307,9 +309,10 @@ class Invontaire extends StatelessWidget {
               controller: controller.quantityController,
               label: 'Quantity',
               icon: Icons.inventory,
-              suffix: controller
-                  .safeCalculate(controller.quantityController.text)
-                  .toString(),
+              suffix: controller.formatNumber(
+                controller.calculate(controller.quantityController.text),
+              ),
+
               onChanged: (value) {
                 controller.formState.currentState!.validate();
               },

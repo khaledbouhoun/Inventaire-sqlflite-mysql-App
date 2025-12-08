@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:get/get_core/src/get_main.dart';
 import 'package:invontaire_local/constant/color.dart';
+import 'package:invontaire_local/controoler/app_controller.dart';
 import 'package:invontaire_local/data/model/product_model.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -20,6 +23,7 @@ class ProductWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final AppController appController = Get.find<AppController>();
     final bool qrExists = (item.prdQr != null && item.prdQr!.isNotEmpty);
 
     // Determine the color based on QR existence for visual feedback
@@ -28,21 +32,9 @@ class ProductWidget extends StatelessWidget {
         : Colors.grey.shade500;
 
     // Extract quantity WITHOUT modifying the original prdNom
-    String qtyText = "";
-    String cleanName = item.prdNom ?? "No Name";
-
-    if (item.prdNom != null) {
-      final qtyRegex = RegExp(
-        r'/\s*Qte\s*[:=]?\s*(\d+)\s*$',
-        caseSensitive: false,
-      );
-      final match = qtyRegex.firstMatch(item.prdNom!);
-      if (match != null) {
-        qtyText = match.group(0) ?? "";
-        // Extract clean name without modifying the original
-        cleanName = item.prdNom!.replaceAll(qtyRegex, '').trim();
-      }
-    }
+    final Map<String, String> nameAndQty = appController.removeQtyFromName(
+      item.prdNom ?? "",
+    );
 
     return Card(
       color: AppColor.white,
@@ -105,7 +97,7 @@ class ProductWidget extends StatelessWidget {
                       TextSpan(
                         children: [
                           TextSpan(
-                            text: cleanName,
+                            text: nameAndQty['cleanName'],
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -113,7 +105,9 @@ class ProductWidget extends StatelessWidget {
                           ),
                           const TextSpan(text: "  "),
                           TextSpan(
-                            text: qtyText.isNotEmpty ? qtyText : "",
+                            text: nameAndQty['qtyText']?.isNotEmpty ?? false
+                                ? nameAndQty['qtyText']
+                                : "",
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,

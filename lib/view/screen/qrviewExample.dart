@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:invontaire_local/constant/color.dart';
+import 'package:invontaire_local/controoler/app_controller.dart';
 import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
 
 class QRViewExample extends StatefulWidget {
@@ -256,12 +257,16 @@ class _QRViewExampleState extends State<QRViewExample>
   }
 
   void _onQRViewCreated(QRViewController controller) {
+    final AppController appController = Get.find<AppController>();
     this.controller = controller;
 
     controller.scannedDataStream.listen((scanData) {
+      final Map<String, String> nameAndQty = appController.removeQtyFromName(
+        scanData.code!,
+      );
       if (!hasScanned && scanData.code != null && scanData.code!.isNotEmpty) {
         setState(() {
-          qrText = scanData.code;
+          qrText = nameAndQty['cleanName'];
           hasScanned = true;
           isScanning = false;
         });
@@ -271,11 +276,11 @@ class _QRViewExampleState extends State<QRViewExample>
         // Provide haptic feedback
         // HapticFeedback.mediumImpact();
 
-        print("QR VALUE: ${scanData.code}");
+        print("QR VALUE: ${nameAndQty['cleanName']}");
 
         // Automatically return to previous page with result after a short delay
         Future.delayed(const Duration(milliseconds: 800), () {
-          Get.back(result: scanData.code);
+          Get.back(result: nameAndQty['cleanName']);
         });
       }
     });

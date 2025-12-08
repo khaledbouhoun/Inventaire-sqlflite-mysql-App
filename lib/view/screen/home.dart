@@ -12,12 +12,8 @@ class Home extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(HomeController());
-    final args = Get.arguments ?? <String, dynamic>{};
-    if (args['success'] == true) {
-      controller.dialogfun.showSnackSuccess('Succes', ' Pointage 1 / Souda ');
-    }
     return GetBuilder<HomeController>(
+      init: HomeController(),
       builder: (controller) {
         return Scaffold(
           backgroundColor: AppColor.background,
@@ -28,6 +24,7 @@ class Home extends StatelessWidget {
               style: TextStyle(
                 color: AppColor.primaryColor,
                 fontWeight: FontWeight.bold,
+                fontSize: Get.width * 0.042,
               ),
             ),
             backgroundColor: AppColor.background,
@@ -86,6 +83,7 @@ class Home extends StatelessWidget {
             ),
             actions: [OnlineWidget()],
           ),
+
           body: WillPopScope(
             onWillPop: alertExitApp,
             child: SafeArea(

@@ -9,6 +9,7 @@ class Invontaie {
   String? invPrdNo;
   String? invPrdNom;
   String? invExp;
+  double? invQte;
   DateTime? invDate;
   int? isUploaded; // 0 = pending, 1 = uploaded
 
@@ -24,6 +25,7 @@ class Invontaie {
     this.invPrdNom,
     this.invExp,
     this.invDate,
+    this.invQte,
     this.isUploaded,
   });
 
@@ -41,6 +43,7 @@ class Invontaie {
     invDate = json['inv_date'] != null
         ? DateTime.parse(json['inv_date'])
         : null;
+    invQte = (json['inv_qte'] as num).toDouble();
     isUploaded = 1; // Default to uploaded for server data
   }
 
@@ -57,6 +60,7 @@ class Invontaie {
     data['inv_prd_nom'] = invPrdNom;
     data['inv_exp'] = invExp;
     data['inv_date'] = invDate?.toIso8601String(); // Convert DateTime to String
+    data['inv_qte'] = invQte;
     data['is_uploaded'] = isUploaded;
     return data;
   }
