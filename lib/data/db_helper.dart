@@ -433,7 +433,7 @@ class DBHelper {
   Future<void> copyDatabaseToDownloads() async {
     try {
       final dbPath = await getDatabasesPath();
-      final path = join(dbPath, 'InvontaireData.db');
+      final path = join(dbPath, 'zakawatt_inventaire_Database.db');
 
       // NOTE: This path requires storage permissions on Android 10+
       final newPath = '/storage/emulated/0/Download/InvontaireData_Backup3.db';

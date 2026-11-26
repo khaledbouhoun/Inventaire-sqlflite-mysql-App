@@ -91,7 +91,7 @@ class LoginController extends GetxController {
 
   // Perform secure login via API call
   Future<void> login() async {
-    if (formStateLogin.currentState!.validate() || selectedUser.value != null) {
+    if (selectedUser.value != null && formStateLogin.currentState!.validate()) {
       try {
         isLoading.value = true;
 

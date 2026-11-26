@@ -15,10 +15,7 @@ class AppLink {
   // ===============================
   static const String users = "$server/user"; // GET all users, POST register
   static const String login = "$server/user/login";
-  static const String autoLogin = "$server/user/auto-login";
   static const String logout = "$server/user/logout";
-  static const String updatePointage = "$server/user/update-pointage";
-  static const String updateDepot = "$server/user/update-depot";
 
   // ===============================
   // Product Endpoints
