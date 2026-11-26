@@ -12,60 +12,64 @@ import 'package:invontaire_local/view/screen/login.dart';
 import 'package:invontaire_local/view/screen/qrviewExample.dart';
 import 'package:math_expressions/math_expressions.dart';
 
+/// Controller for managing inventory operations
 class InvontaireController extends GetxController {
-  // ========== Dependencies ==========
-  final Crud crud = Crud();
-  final HomeController homeController = Get.find<HomeController>();
+  // ==================== DEPENDENCIES ====================
+  final Crud _crud = Crud();
+  final HomeController _homeController = Get.find<HomeController>();
+  final AppController _appController = Get.find<AppController>();
+
   final GlobalKey<FormState> formState = GlobalKey<FormState>();
   final ScrollController scrollController = ScrollController();
-  final AppController appController = Get.find<AppController>();
-
-  // ========== Data Models ==========
-  BuySettings? buySettings;
-  SellSettings? sellSettings;
-  User? user;
-
-  // ========== Observables ==========
-  Rx<Product?> selectedArticle = Rx<Product?>(null);
-
-  // ========== Lists ==========
-  RxList<Invontaie> inventaireDetaileList = <Invontaie>[].obs;
-  List<Product?> products = <Product?>[];
-  List<Product?> filteredProducts = <Product?>[];
-
-  // ========== State Variables ==========
-  String searchQuery = '';
   final TextEditingController quantityController = TextEditingController();
-  String quantityHideText = '';
 
-  RxBool isLoading = false.obs;
-  RxBool isSaving = false.obs;
+  // ==================== GETTERS ====================
+  AppController get appController => _appController;
+  User? get user => _user;
+  BuySettings? get buySettings => _buySettings;
+  SellSettings? get sellSettings => _sellSettings;
 
-  // ========== Initialization ==========
+  // ==================== PRIVATE DATA ====================
+  BuySettings? _buySettings;
+  SellSettings? _sellSettings;
+  User? _user;
+
+  // ==================== OBSERVABLE STATE ====================
+  final selectedArticle = Rx<Product?>(null);
+  final inventaireDetaileList = <Invontaie>[].obs;
+  final isLoading = false.obs;
+  final isSaving = false.obs;
+
+  // ==================== SEARCH STATE ====================
+  final filteredProducts = <Product?>[].obs;
+  final _searchQuery = ''.obs;
+  String get searchQuery => _searchQuery.value;
+
+  List<Product?> _allProducts = [];
+
+  // ==================== LIFECYCLE ====================
   @override
   void onInit() {
     super.onInit();
     _initializeData();
-    quantityController.addListener(update);
+    quantityController.addListener(_onQuantityChanged);
   }
 
   @override
   void onClose() {
-    quantityController.removeListener(update);
+    quantityController.removeListener(_onQuantityChanged);
     quantityController.dispose();
     scrollController.dispose();
     super.onClose();
   }
 
+  // ==================== INITIALIZATION ====================
   Future<void> _initializeData() async {
     try {
-      // Load data from HomeController
-      user = homeController.user;
-      buySettings = homeController.buySettings;
-      sellSettings = homeController.sellSettings;
-      products = homeController.products;
-
-      filteredProducts = [];
+      _user = _homeController.user;
+      _buySettings = _homeController.buySettings;
+      _sellSettings = _homeController.sellSettings;
+      _allProducts = _homeController.products;
 
       await fetchInvontaires();
     } catch (e) {
@@ -73,127 +77,160 @@ class InvontaireController extends GetxController {
     }
   }
 
-  // ========== Fetch Data ==========
+  @override
+  void onReady() {
+    super.onReady();
+    fetchInvontaires(); // Ensures fresh data when screen shows
+  }
+
+  void _onQuantityChanged() {
+    if (formState.currentState != null) {
+      formState.currentState!.validate();
+    }
+    update();
+  }
+
+  // ==================== DATA OPERATIONS ====================
+
+  /// Fetches inventory data from local DB and syncs with server if online
   Future<void> fetchInvontaires() async {
     isLoading.value = true;
-    update();
+
     try {
-      // Always load from local database first
-      inventaireDetaileList.value = await appController.dbHelper
-          .getAllInvontaies();
-      print("Loaded ${inventaireDetaileList.length} invontaires from local DB");
+      // Load from local database
+      await _loadLocalInventory();
 
-      // If online, sync with server
-      if (appController.isOnline.value) {
-        try {
-          var response = await crud.get(
-            '${AppLink.invontaies}?usr_no=${user?.usrNo}&lemp_no=${user?.usrLemp}&pntg_no=${user?.usrPntg}',
-          );
-          if (response.statusCode == 200 || response.statusCode == 201) {
-            var data = response.body;
-            if (data is List) {
-              List<Invontaie> serverInvontaires = data
-                  .map((e) => Invontaie.fromJson(e))
-                  .toList();
-
-              await appController.dbHelper.insertAllInvontaie(
-                serverInvontaires,
-              );
-              inventaireDetaileList.value = await appController.dbHelper
-                  .getAllInvontaies();
-              print(
-                "Synced ${inventaireDetaileList.length} invontaires from server",
-              );
-            }
-          }
-        } catch (e) {
-          print("Error syncing invontaires from server: $e");
-          // Continue with local data
-        }
+      // Sync with server if online
+      if (_appController.isOnline.value) {
+        await _syncWithServer();
       } else {
-        print("Offline mode: Using local invontaires data");
+        debugPrint("Offline mode: Using local inventory data");
       }
+
+      // Sort, clean and enrich data
+      _sortAndCleanInventory();
+      _enrichInventoryWithProductNames();
     } catch (e) {
-      print("Error fetching invontaires: $e");
+      debugPrint("Error fetching inventory: $e");
     } finally {
-      // Sort by date descending, handling nulls
-      inventaireDetaileList.sort((b, a) {
-        if (a.invDate == null && b.invDate == null) return 0;
-        if (a.invDate == null) return -1;
-        if (b.invDate == null) return 1;
-        return a.invDate!.compareTo(b.invDate!);
-      });
-
-      for (var e in inventaireDetaileList) {
-        if (e.invPrdNom != null) {
-          e.invPrdNom = appController.removeQtyFromName(
-            e.invPrdNom!,
-          )["cleanName"];
-        }
-      }
-
       isLoading.value = false;
       update();
     }
   }
 
-  // ========== Save / Update ==========
-  Future<void> saveInvontaire() async {
-    if (selectedArticle.value == null) return;
-    if (!formState.currentState!.validate()) return;
+  /// Enrich inventory items with product names from the products list
+  void _enrichInventoryWithProductNames() {
+    for (var item in inventaireDetaileList) {
+      if (item.invPrdNo != null) {
+        final product = _allProducts.firstWhereOrNull(
+          (p) => p?.prdNo == item.invPrdNo,
+        );
+        if (product != null && product.prdNom != null) {
+          item.invPrdNom = _appController.removeQtyFromName(
+            product.prdNom!,
+          )["cleanName"];
+        }
+      }
+    }
 
-    isSaving.value = true;
-    update();
+    // Force final update
+    inventaireDetaileList.refresh();
+  }
 
+  Future<void> _loadLocalInventory() async {
+    inventaireDetaileList.value = await _appController.dbHelper
+        .getAllInvontaies();
+    debugPrint("Loaded ${inventaireDetaileList.length} items from local DB");
+
+    // Force observable update
+    inventaireDetaileList.refresh();
+  }
+
+  Future<void> _syncWithServer() async {
     try {
-      Invontaie? existingInvontaie = inventaireDetaileList.firstWhereOrNull(
-        (e) => e.invPrdNo == selectedArticle.value!.prdNo,
+      final response = await _crud.get(
+        '${AppLink.invontaies}?usr_no=${_user?.usrNo}'
+        '&lemp_no=${_user?.usrLemp}&pntg_no=${_user?.usrPntg}',
       );
 
-      Invontaie invontaieToSave;
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = response.body;
 
-      if (existingInvontaie == null) {
-        // Create new record
-        invontaieToSave = Invontaie(
-          invLempNo: user?.usrLemp,
-          invPntgNo: user?.usrPntg,
-          invUsrNo: user?.usrNo,
-          invPrdNo: selectedArticle.value!.prdNo,
-          invExp: quantityController.text,
-          invQte: calculate(quantityController.text),
-          invDate: DateTime.now(),
-          isUploaded: 0, // Mark as pending upload
-        );
-      } else {
-        // Update existing record
-        invontaieToSave = Invontaie(
-          invNo: existingInvontaie.invNo,
-          invLempNo: existingInvontaie.invLempNo,
-          invPntgNo: existingInvontaie.invPntgNo,
-          invUsrNo: existingInvontaie.invUsrNo,
-          invPrdNo: existingInvontaie.invPrdNo,
-          invExp: quantityController.text,
-          invQte: calculate(quantityController.text),
-          invDate: existingInvontaie.invDate,
-          isUploaded: 0, // Mark as pending upload
-        );
+        if (data is List) {
+          final serverInventory = data
+              .map((e) => Invontaie.fromJson(e))
+              .toList();
+
+          await _appController.dbHelper.insertAllInvontaie(serverInventory);
+          inventaireDetaileList.value = await _appController.dbHelper
+              .getAllInvontaies();
+
+          // Force observable update
+          inventaireDetaileList.refresh();
+
+          debugPrint(
+            "Synced ${inventaireDetaileList.length} items from server",
+          );
+        }
       }
+    } catch (e) {
+      debugPrint("Error syncing with server: $e");
+    }
+  }
 
-      // Save to local database first
-      final localId = await appController.dbHelper.insertOrUpdateInvontaie(
-        invontaieToSave,
+  void _sortAndCleanInventory() {
+    // Sort by date descending
+    inventaireDetaileList.sort((b, a) {
+      if (a.invDate == null && b.invDate == null) return 0;
+      if (a.invDate == null) return -1;
+      if (b.invDate == null) return 1;
+      return a.invDate!.compareTo(b.invDate!);
+    });
+
+    // Clean product names
+    for (var item in inventaireDetaileList) {
+      if (item.invPrdNom != null) {
+        item.invPrdNom = _appController.removeQtyFromName(
+          item.invPrdNom!,
+        )["cleanName"];
+      }
+    }
+
+    // Force observable update
+    inventaireDetaileList.refresh();
+  }
+
+  /// Saves or updates inventory item
+  Future<void> saveInvontaire() async {
+    if (selectedArticle.value == null || !formState.currentState!.validate()) {
+      return;
+    }
+
+    isSaving.value = true;
+
+    try {
+      final invontaire = _createInvontaireRecord();
+      final localId = await _appController.dbHelper.insertOrUpdateInvontaie(
+        invontaire,
       );
 
       if (localId != null) {
-        _showSuccessSnackbar("Item saved locally");
+        debugPrint("Invontaie saved locally with id: $localId");
 
-        // If online, try to sync to server
-        if (appController.isOnline.value) {
-          appController.syncPendingInvontaies();
+        // Update the local list immediately without fetching
+        await _updateLocalList(localId);
+
+        _showSuccessSnackbar("Item saved successfully");
+
+        // Sync to server in background if online
+        if (_appController.isOnline.value) {
+          _appController.syncPendingInvontaies();
         }
 
         clearSelection();
-        await fetchInvontaires();
+
+        // Force UI update
+        update();
       } else {
         _showErrorSnackbar("Failed to save item locally");
       }
@@ -201,18 +238,104 @@ class InvontaireController extends GetxController {
       _showErrorSnackbar("Error saving: $e");
     } finally {
       isSaving.value = false;
-      inventaireDetaileList.refresh();
       update();
     }
   }
 
-  // ========== Article Selection ==========
+  /// Updates the local inventory list with the saved item
+  Future<void> _updateLocalList(int savedId) async {
+    try {
+      // Get the saved item from DB
+      final savedItem = await _appController.dbHelper.getInvontaieById(savedId);
+
+      if (savedItem == null) {
+        debugPrint("Warning: Could not find saved item with id $savedId");
+        return;
+      }
+
+      // Enrich with product name
+      if (savedItem.invPrdNo != null) {
+        final product = _allProducts.firstWhereOrNull(
+          (p) => p?.prdNo == savedItem.invPrdNo,
+        );
+        if (product != null && product.prdNom != null) {
+          savedItem.invPrdNom = _appController.removeQtyFromName(
+            product.prdNom!,
+          )["cleanName"];
+        }
+      }
+
+      // Check if item already exists in list
+      final existingIndex = inventaireDetaileList.indexWhere(
+        (item) => item.invNo == savedId,
+      );
+
+      if (existingIndex != -1) {
+        // Update existing item
+        inventaireDetaileList[existingIndex] = savedItem;
+        debugPrint("Updated existing item at index $existingIndex");
+      } else {
+        // Add new item at the beginning (most recent first)
+        inventaireDetaileList.insert(0, savedItem);
+        debugPrint("Added new item to list");
+      }
+
+      // Force observable update
+      inventaireDetaileList.refresh();
+    } catch (e) {
+      debugPrint("Error updating local list: $e");
+    }
+  }
+
+  Invontaie _createInvontaireRecord() {
+    final existingItem = inventaireDetaileList.firstWhereOrNull(
+      (e) => e.invPrdNo == selectedArticle.value!.prdNo,
+    );
+
+    if (existingItem == null) {
+      // Create new record
+      return Invontaie(
+        invLempNo: _user?.usrLemp,
+        invPntgNo: _user?.usrPntg,
+        invUsrNo: _user?.usrNo,
+        invPrdNo: selectedArticle.value!.prdNo,
+        invExp: quantityController.text,
+        invQte: calculate(quantityController.text),
+        invDate: DateTime.now(),
+        isUploaded: 0,
+      );
+    } else {
+      // Update existing record
+      return Invontaie(
+        invNo: existingItem.invNo,
+        invLempNo: existingItem.invLempNo,
+        invPntgNo: existingItem.invPntgNo,
+        invUsrNo: existingItem.invUsrNo,
+        invPrdNo: existingItem.invPrdNo,
+        invExp: quantityController.text,
+        invQte: calculate(quantityController.text),
+        invDate: existingItem.invDate,
+        isUploaded: 0,
+      );
+    }
+  }
+
+  // ==================== ARTICLE SELECTION ====================
+
   void selectArticle(Product? article) {
     if (article == null) return;
 
-    selectedArticle.value = article;
+    // Clean product name
+    article.prdNom = _appController.removeQtyFromName(
+      article.prdNom!,
+    )['cleanName'];
 
-    // Scroll to top to show selection
+    selectedArticle.value = article;
+    _scrollToTop();
+    _loadExistingQuantity(article);
+  }
+
+  void _scrollToTop() {
     if (scrollController.hasClients) {
       scrollController.animateTo(
         0,
@@ -220,77 +343,71 @@ class InvontaireController extends GetxController {
         curve: Curves.easeInOut,
       );
     }
+  }
 
-    // Check if article exists in current list and populate with existing expression
-    var existingItems = inventaireDetaileList.where(
+  void _loadExistingQuantity(Product article) {
+    final existingItem = inventaireDetaileList.firstWhereOrNull(
       (e) => e.invPrdNo == article.prdNo,
     );
 
-    if (existingItems.isEmpty) {
-      quantityController.clear();
-      quantityHideText = '';
-    } else {
-      Invontaie existingItem = existingItems.first;
+    if (existingItem != null) {
       quantityController.text = existingItem.invExp ?? '';
+    } else {
+      quantityController.clear();
     }
-
-    update();
   }
 
   void clearSelection() {
     selectedArticle.value = null;
     quantityController.clear();
-    quantityHideText = '';
-    searchQuery = '';
-    filteredProducts = [];
-    update();
+    _searchQuery.value = '';
+    filteredProducts.clear();
   }
 
-  // ========== Search Logic ==========
-  void filterProducts(String query) {
-    searchQuery = query.toLowerCase().trim();
+  // ==================== SEARCH FUNCTIONALITY ====================
 
-    if (searchQuery.isEmpty) {
-      filteredProducts = [];
-      update();
+  void filterProducts(String query) {
+    _searchQuery.value = query.toLowerCase().trim();
+
+    if (_searchQuery.value.isEmpty) {
+      filteredProducts.clear();
       return;
     }
-    filteredProducts = products
-        .where((article) => _matchesSearchQuery(article))
-        .map(
-          (p) => Product(
-            prdNo: p!.prdNo,
-            prdNom: p.prdNom != null
-                ? appController.removeQtyFromName(p.prdNom!)["cleanName"]
-                : p.prdNom,
-            prdQr: p.prdQr,
-            // copy other fields as needed
-          ),
-        )
+
+    filteredProducts.value = _allProducts
+        .where(_matchesSearchQuery)
+        .map(_createCleanProduct)
         .toList();
 
     _sortSearchResults();
-    update();
   }
 
-  bool _matchesSearchQuery(Product? article) {
-    if (article == null) return false;
+  bool _matchesSearchQuery(Product? product) {
+    if (product == null) return false;
 
-    final q = searchQuery;
-    final parts = q.split(' ').where((p) => p.isNotEmpty).toList();
+    final query = _searchQuery.value;
+    final parts = query.split(' ').where((p) => p.isNotEmpty).toList();
 
-    final name = (article.prdNom ?? "").toLowerCase();
-    final code = (article.prdNo ?? "").toLowerCase();
-    final qr = (article.prdQr ?? "").toLowerCase();
-
-    // Combine fields for searching
-    final text = "$code $name $qr";
+    final name = (product.prdNom ?? "").toLowerCase();
+    final code = (product.prdNo ?? "").toLowerCase();
+    final qr = (product.prdQr ?? "").toLowerCase();
+    final combinedText = "$code $name $qr";
 
     if (parts.length > 1) {
-      return parts.every((word) => text.contains(word));
-    } else {
-      return name.contains(q) || code.contains(q) || qr.contains(q);
+      return parts.every((word) => combinedText.contains(word));
     }
+
+    return name.contains(query) || code.contains(query) || qr.contains(query);
+  }
+
+  Product _createCleanProduct(Product? p) {
+    return Product(
+      prdNo: p!.prdNo,
+      prdNom: p.prdNom != null
+          ? _appController.removeQtyFromName(p.prdNom!)["cleanName"]
+          : p.prdNom,
+      prdQr: p.prdQr,
+    );
   }
 
   void _sortSearchResults() {
@@ -298,8 +415,9 @@ class InvontaireController extends GetxController {
       final aName = (a?.prdNom ?? "").toLowerCase();
       final bName = (b?.prdNom ?? "").toLowerCase();
 
-      final aExact = aName == searchQuery;
-      final bExact = bName == searchQuery;
+      // Exact matches first
+      final aExact = aName == _searchQuery.value;
+      final bExact = bName == _searchQuery.value;
 
       if (aExact && !bExact) return -1;
       if (!aExact && bExact) return 1;
@@ -308,13 +426,16 @@ class InvontaireController extends GetxController {
     });
   }
 
-  // ========== QR Code ==========
+  // ==================== QR CODE SCANNING ====================
+
   Future<void> scanQRCode() async {
     try {
-      String? result = await Get.to(() => QRViewExample());
+      final result = await Get.to<String>(() => QRViewExample());
+
       if (result != null && result.isNotEmpty) {
-        print("QR CODE: $result");
-        Product? product = _searchInBarcodes(result);
+        debugPrint("QR CODE: $result");
+
+        final product = _findProductByQR(result);
         if (product != null) {
           selectArticle(product);
         } else {
@@ -322,76 +443,28 @@ class InvontaireController extends GetxController {
         }
       }
     } catch (e) {
-      print("QR Scan error: $e");
+      debugPrint("QR Scan error: $e");
     }
   }
 
-  Product? _searchInBarcodes(String qr) {
-    String qrCode = qr.split('/')[0].trim();
-    return products.firstWhere((product) => product?.prdNo == qrCode);
+  Product? _findProductByQR(String qr) {
+    final qrCode = qr.split('/')[0].trim();
+    return _allProducts.firstWhereOrNull((product) => product?.prdNo == qrCode);
   }
 
-  // ========== Helpers ==========
-  void _showSuccessSnackbar(String message) {
-    if (Get.context != null) {
-      ScaffoldMessenger.of(Get.context!).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle, color: Colors.white),
-              const SizedBox(width: 10),
-              Expanded(child: Text(message)),
-            ],
-          ),
-          backgroundColor: Colors.green.shade600,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          margin: const EdgeInsets.all(10),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    } else {
-      print("Success: $message");
-    }
-  }
-
-  void _showErrorSnackbar(String message) {
-    if (Get.context != null) {
-      ScaffoldMessenger.of(Get.context!).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error_outline, color: Colors.white),
-              const SizedBox(width: 10),
-              Expanded(child: Text(message)),
-            ],
-          ),
-          backgroundColor: Colors.red.shade600,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          margin: const EdgeInsets.all(10),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    } else {
-      print("Error: $message");
-    }
-  }
+  // ==================== UTILITIES ====================
 
   double calculate(String expr) {
+    if (expr.isEmpty) return 0.0;
+
     try {
-      Parser p = Parser();
-      Expression exp = p.parse(expr);
-      ContextModel cm = ContextModel();
-      double eval = exp.evaluate(EvaluationType.REAL, cm);
-      return eval;
+      final parser = Parser();
+      final expression = parser.parse(expr);
+      final contextModel = ContextModel();
+      return expression.evaluate(EvaluationType.REAL, contextModel);
     } catch (e) {
-      print("Evaluation Error: $e");
-      return 0.00;
+      debugPrint("Calculation error: $e");
+      return 0.0;
     }
   }
 
@@ -401,5 +474,55 @@ class InvontaireController extends GetxController {
 
   void onLogout() {
     Get.offAll(() => Login());
+  }
+
+  // ==================== UI FEEDBACK ====================
+
+  void _showSuccessSnackbar(String message) {
+    if (Get.context == null) {
+      debugPrint("Success: $message");
+      return;
+    }
+
+    ScaffoldMessenger.of(Get.context!).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 10),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Colors.green.shade600,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(10),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showErrorSnackbar(String message) {
+    if (Get.context == null) {
+      debugPrint("Error: $message");
+      return;
+    }
+
+    ScaffoldMessenger.of(Get.context!).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white),
+            const SizedBox(width: 10),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Colors.red.shade600,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(10),
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 }

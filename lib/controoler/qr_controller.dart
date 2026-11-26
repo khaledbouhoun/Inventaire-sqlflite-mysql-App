@@ -9,7 +9,7 @@ import 'package:invontaire_local/fonctions/dialog.dart';
 
 class QrController extends GetxController {
   late final HomeController homeController = Get.find<HomeController>();
-  late final AppController _appController = Get.find<AppController>();
+  late final AppController appController = Get.find<AppController>();
   late final Crud _crud = Get.find<Crud>();
   late final Dialogfun _dialogfun = Get.find<Dialogfun>();
 
@@ -181,12 +181,12 @@ class QrController extends GetxController {
       // }
       // print("cleanName : $cleanName");
       // prod.prdQr = "${prod.prdNo} / $cleanName";
-      final Map<String, String> nameAndQty = _appController.removeQtyFromName(
+      final Map<String, String> nameAndQty = appController.removeQtyFromName(
         prod.prdNom ?? "",
       );
       prod.prdQr = "${prod.prdNo} / ${nameAndQty['cleanName']}";
 
-      bool success = await _appController.dbHelper
+      bool success = await appController.dbHelper
           .insertGestQrAndProductInTransaction(
             prod,
             homeController.user!.usrNo!,
@@ -203,9 +203,9 @@ class QrController extends GetxController {
       await Future.delayed(const Duration(milliseconds: 500));
       selectedProduct.value = null;
 
-      if (success && _appController.isOnline.value) {
+      if (success && appController.isOnline.value) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          _appController.syncPendingData();
+          appController.syncPendingData();
         });
       }
     } catch (e) {

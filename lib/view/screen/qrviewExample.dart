@@ -55,7 +55,7 @@ class _QRViewExampleState extends State<QRViewExample>
           ),
         ),
         title: const Text(
-          'Scan QR Code',
+          'Scanner le code QR',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -190,7 +190,7 @@ class _QRViewExampleState extends State<QRViewExample>
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'QR Code Scanned!',
+                      'Code QR scanné !',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -229,7 +229,7 @@ class _QRViewExampleState extends State<QRViewExample>
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      'Position QR code within frame',
+                      'Positionnez le code QR dans le cadre',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -239,7 +239,7 @@ class _QRViewExampleState extends State<QRViewExample>
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'The scanner will automatically detect and select the product',
+                      'Le scanner détectera et sélectionnera automatiquement le produit',
                       style: TextStyle(
                         fontSize: 14,
                         color: AppColor.primaryColor.withOpacity(0.7),

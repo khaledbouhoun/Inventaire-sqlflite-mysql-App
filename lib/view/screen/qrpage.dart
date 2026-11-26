@@ -46,7 +46,7 @@ class QrPage extends StatelessWidget {
             color: AppColor.primaryColor,
           ),
         ),
-        actions: const [MiniOnlineWidget()],
+        actions: [MiniOnlineWidget(count: controller.appController.countGestQr)],
       ),
 
       body: Obx(() {

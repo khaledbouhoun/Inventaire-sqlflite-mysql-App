@@ -1,8 +1,8 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:http/http.dart' as http;
 import 'package:invontaire_local/class/crud.dart';
 import 'package:invontaire_local/constant/linkapi.dart';
 import 'package:invontaire_local/data/db_helper.dart';
@@ -13,6 +13,9 @@ class AppController extends GetxController {
   late DBHelper dbHelper;
   RxBool isOnline = true.obs;
   RxBool isUploading = false.obs;
+  RxInt countProducts = 0.obs;
+  RxInt countGestQr = 0.obs;
+  RxInt countInvontaies = 0.obs;
 
   final Crud crud = Get.find();
   final Dialogfun dialogfun = Get.find();
@@ -31,32 +34,44 @@ class AppController extends GetxController {
     print("Database opened");
 
     // Defer sync until the widget tree is ready (context is available)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      syncPendingData();
-      syncPendingInvontaies();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await syncPendingData();
+      await syncPendingInvontaies();
     });
   }
 
   /// ------------------- Connectivity Listener -------------------
   void _initConnectivityListener() async {
+    // Initial check
     var status = await _connectivity.checkConnectivity();
-    _updateConnectivityStatus(status);
+    final internet = await hasInternet();
+    _updateConnectivityStatus(status, internet);
 
-    _connectivity.onConnectivityChanged.listen(_updateConnectivityStatus);
+    // Listen to connectivity changes
+    _connectivity.onConnectivityChanged.listen((status) async {
+      final internet = await hasInternet();
+      _updateConnectivityStatus(status, internet);
+    });
   }
 
-  void _updateConnectivityStatus(List<ConnectivityResult> status) async {
-    bool nowOnline =
+  void _updateConnectivityStatus(
+    List<ConnectivityResult> status,
+    bool internet,
+  ) async {
+    // Check if connected to a network
+    bool connectedToNetwork =
         status.contains(ConnectivityResult.wifi) ||
         status.contains(ConnectivityResult.ethernet) ||
         status.contains(ConnectivityResult.mobile);
-    // final result = await InternetAddress.lookup('google.com');
+
+    bool nowOnline = connectedToNetwork && internet;
 
     if (isOnline.value != nowOnline) {
       isOnline.value = nowOnline;
       print('Connectivity changed: $nowOnline');
 
       if (nowOnline) {
+        // Only sync if truly online
         await syncPendingData();
         await syncPendingInvontaies();
       } else {
@@ -65,9 +80,22 @@ class AppController extends GetxController {
     }
   }
 
+  /// ------------------- Check Internet via HTTP -------------------
+  Future<bool> hasInternet() async {
+    try {
+      final response = await http
+          .get(Uri.parse('https://inventaire.zakawatt.dz/api/test'))
+          .timeout(const Duration(seconds: 3));
+      return response.statusCode == 200 ? true : false;
+    } catch (e) {
+      print('No internet via HTTP: $e');
+      return false;
+    }
+  }
+
   /// ------------------- Sync Pending Data -------------------
   Future<void> syncPendingData() async {
-    if (isUploading.value || !isOnline.value) return;
+    if (isUploading.value || !isOnline.value || !await hasInternet()) return;
     isUploading.value = true;
 
     try {
@@ -124,6 +152,7 @@ class AppController extends GetxController {
   }
 
   Future<int> _syncPendingGestQr() async {
+    countGestQr.value = 0;
     final pendingGestQr = await dbHelper.getPendingGestQr();
 
     if (pendingGestQr.isEmpty) {
@@ -131,6 +160,8 @@ class AppController extends GetxController {
       return 0;
     }
     int successCount = 0;
+
+    countGestQr.value = pendingGestQr.length;
     for (var gestQr in pendingGestQr) {
       try {
         final response = await crud.post(AppLink.gestqr, {
@@ -145,7 +176,7 @@ class AppController extends GetxController {
 
         if (response.statusCode == 200 || response.statusCode == 201) {
           print('Uploaded gestQr ${gestQr.gqrNo} successfully.');
-          await dbHelper.markGestQrAsUploaded(gestQr);
+          countGestQr.value -= await dbHelper.markGestQrAsUploaded(gestQr);
           successCount++;
         }
       } catch (e) {
@@ -156,10 +187,13 @@ class AppController extends GetxController {
   }
 
   Future<void> syncPendingInvontaies() async {
-    if (isUploading.value || !isOnline.value) return;
+    if (isUploading.value || !isOnline.value || !await hasInternet()) return;
     isUploading.value = true;
+    countInvontaies.value = 0;
+
     try {
       final pendingInvontaies = await dbHelper.getPendingInvontaies();
+      countInvontaies.value = pendingInvontaies.length;
 
       if (pendingInvontaies.isEmpty) {
         print('No pending invontaies to upload.');
@@ -175,23 +209,32 @@ class AppController extends GetxController {
             'inv_prd_no': invontaie.invPrdNo,
             'inv_exp': invontaie.invExp,
             'inv_qte': invontaie.invQte,
-            'inv_date': invontaie.invDate == null
-                ? DateTime.now().toIso8601String()
-                : invontaie.invDate!.toIso8601String(),
+            'inv_date':
+                invontaie.invDate?.toIso8601String() ??
+                DateTime.now().toIso8601String(),
           });
 
           if (response.statusCode == 200 || response.statusCode == 201) {
             print('Uploaded invontaie ${invontaie.invNo} successfully.');
             if (invontaie.invNo != null) {
-              await dbHelper.markInvontaieAsUploaded(invontaie.invNo!);
+              final updated = await dbHelper.markInvontaieAsUploaded(
+                invontaie.invNo!,
+              );
+              countInvontaies.value = (countInvontaies.value - updated).clamp(
+                0,
+                pendingInvontaies.length,
+              );
+            } else {
+              continue;
             }
           }
         } catch (e) {
           print('Failed to upload invontaie ${invontaie.invNo}: $e');
+          continue;
         }
       }
     } catch (e) {
-      print('Failed to upload invontaie: $e');
+      print('Failed to upload invontaies: $e');
     } finally {
       isUploading.value = false;
     }

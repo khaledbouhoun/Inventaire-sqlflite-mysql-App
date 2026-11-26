@@ -10,7 +10,8 @@ class OnlineLoginWidget extends StatefulWidget {
   State<OnlineLoginWidget> createState() => _OnlineLoginWidgetState();
 }
 
-class _OnlineLoginWidgetState extends State<OnlineLoginWidget> with TickerProviderStateMixin {
+class _OnlineLoginWidgetState extends State<OnlineLoginWidget>
+    with TickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
@@ -20,9 +21,14 @@ class _OnlineLoginWidgetState extends State<OnlineLoginWidget> with TickerProvid
   void initState() {
     super.initState();
 
-    _pulseController = AnimationController(duration: const Duration(milliseconds: 1200), vsync: this)..repeat(reverse: true);
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    )..repeat(reverse: true);
 
-    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.10).animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut));
+    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.10).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
   }
 
   @override
@@ -135,7 +141,8 @@ class OnlineWidget extends StatefulWidget {
   State<OnlineWidget> createState() => _OnlineWidgetState();
 }
 
-class _OnlineWidgetState extends State<OnlineWidget> with TickerProviderStateMixin {
+class _OnlineWidgetState extends State<OnlineWidget>
+    with TickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
@@ -143,9 +150,14 @@ class _OnlineWidgetState extends State<OnlineWidget> with TickerProviderStateMix
   void initState() {
     super.initState();
 
-    _pulseController = AnimationController(duration: const Duration(milliseconds: 1200), vsync: this)..repeat(reverse: true);
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    )..repeat(reverse: true);
 
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.18).animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut));
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.18).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
   }
 
   @override
@@ -204,7 +216,13 @@ class _OnlineWidgetState extends State<OnlineWidget> with TickerProviderStateMix
                   decoration: BoxDecoration(
                     color: Colors.white,
                     shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: Colors.white.withOpacity(0.65), blurRadius: 10, spreadRadius: 2)],
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.white.withOpacity(0.65),
+                        blurRadius: 10,
+                        spreadRadius: 2,
+                      ),
+                    ],
                   ),
 
                   child: ClipRRect(
@@ -260,13 +278,16 @@ class _OnlineWidgetState extends State<OnlineWidget> with TickerProviderStateMix
 // online widget mini
 
 class MiniOnlineWidget extends StatefulWidget {
-  const MiniOnlineWidget({super.key});
+  const MiniOnlineWidget({super.key, this.count});
+
+  final RxInt? count;
 
   @override
   State<MiniOnlineWidget> createState() => _MiniOnlineWidgetState();
 }
 
-class _MiniOnlineWidgetState extends State<MiniOnlineWidget> with TickerProviderStateMixin {
+class _MiniOnlineWidgetState extends State<MiniOnlineWidget>
+    with TickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
@@ -274,9 +295,14 @@ class _MiniOnlineWidgetState extends State<MiniOnlineWidget> with TickerProvider
   void initState() {
     super.initState();
 
-    _pulseController = AnimationController(duration: const Duration(milliseconds: 1200), vsync: this)..repeat(reverse: true);
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    )..repeat(reverse: true);
 
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut));
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
   }
 
   @override
@@ -299,10 +325,10 @@ class _MiniOnlineWidgetState extends State<MiniOnlineWidget> with TickerProvider
         child: AnimatedContainer(
           alignment: .center,
           duration: const Duration(milliseconds: 400),
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          padding: const EdgeInsets.all(10),
+          margin: const EdgeInsets.all(5),
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(60),
+            borderRadius: BorderRadius.circular(25),
             gradient: LinearGradient(
               colors: controller.isUploading.value
                   ? [bleu.withOpacity(0.8), bleu]
@@ -325,15 +351,22 @@ class _MiniOnlineWidgetState extends State<MiniOnlineWidget> with TickerProvider
               ),
             ],
           ),
-          child: Icon(
-            controller.isUploading.value
-                ? Icons.cloud_upload_rounded
-                : controller.isOnline.value
-                ? Icons.wifi_rounded
-                : Icons.wifi_off_rounded,
-            color: Colors.white,
-            size: 18,
-          ),
+          child: controller.isUploading.value
+              ? Text(
+                  widget.count?.value.toString() ?? "0",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                )
+              : Icon(
+                  controller.isOnline.value
+                      ? Icons.wifi_rounded
+                      : Icons.wifi_off_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
         ),
       ),
     );

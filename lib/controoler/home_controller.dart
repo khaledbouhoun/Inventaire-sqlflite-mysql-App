@@ -1,8 +1,8 @@
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:invontaire_local/class/crud.dart';
 import 'package:invontaire_local/constant/linkapi.dart';
 import 'package:invontaire_local/controoler/app_controller.dart';
+import 'package:invontaire_local/controoler/invontaire_controller.dart';
 import 'package:invontaire_local/data/model/product_model.dart';
 import 'package:invontaire_local/data/model/gestqr.dart';
 import 'package:invontaire_local/data/model/invontaie_model.dart';
@@ -134,7 +134,16 @@ class HomeController extends GetxController {
 
   void goToInventaireList() {
     print("goToInventaireList");
-    Get.to(() => Invontaire());
+
+    // Delete existing controller
+    if (Get.isRegistered<InvontaireController>()) {
+      Get.delete<InvontaireController>();
+    }
+
+    // Create fresh controller
+    Get.put(InvontaireController());
+
+    Get.to(() => const Invontaire());
   }
 
   void goToQrCodeSettings() {

@@ -314,6 +314,23 @@ class DBHelper {
     return List.generate(maps.length, (i) => Invontaie.fromJson(maps[i]));
   }
 
+  /// Get a single Invontaie by ID
+  Future<Invontaie?> getInvontaieById(int invNo) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'invontaie',
+      where: 'inv_no = ?',
+      whereArgs: [invNo],
+      limit: 1,
+    );
+
+    if (maps.isEmpty) {
+      return null;
+    }
+
+    return Invontaie.fromJson(maps.first);
+  }
+
   Future<List<Invontaie>> getPendingInvontaies() async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(

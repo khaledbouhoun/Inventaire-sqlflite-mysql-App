@@ -20,7 +20,7 @@ class Home extends StatelessWidget {
           appBar: AppBar(
             centerTitle: true,
             title: Text(
-              '${controller.user?.usrPntgNom ?? ''} / ${controller.user?.usrLempNom ?? ''}',
+              '${controller.user?.usrLempNom ?? ''} / ${controller.user?.usrPntgNom ?? ''}',
               style: TextStyle(
                 color: AppColor.primaryColor,
                 fontWeight: FontWeight.bold,
