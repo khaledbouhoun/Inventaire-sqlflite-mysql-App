@@ -2,8 +2,8 @@ class AppLink {
   // ===============================
   // Base server URL
   // ===============================
-  // static const String server = "http://192.168.1.65:8000/api";
-  static const String server = "https://inventaire.zakawatt.dz/api";
+  static const String server = "http://127.0.0.1:8000/api";
+  // static const String server = "https://inventaire.zakawatt.dz/api";
   //
   // ===============================
   // Test Endpoint
@@ -21,14 +21,12 @@ class AppLink {
   // Product Endpoints
   // ===============================
   static const String products = "$server/products"; // GET list or POST create
-  static const String importProducts =
-      "$server/products/import"; // POST import Excel
+  static const String importProducts = "$server/products/import"; // POST import Excel
 
   // ===============================
   // Lemplacement Endpoints
   // ===============================
-  static const String lemplacements =
-      "$server/lemplacements"; // GET all, POST create
+  static const String lemplacements = "$server/lemplacements"; // GET all, POST create
 
   // ===============================
   // Gestqr Endpoints

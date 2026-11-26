@@ -52,9 +52,7 @@ class DBHelper {
         uploaded INTEGER DEFAULT 0
       )
     ''');
-    await db.execute(
-      'CREATE INDEX IF NOT EXISTS idx_products_qr ON products(prd_qr)',
-    );
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_products_qr ON products(prd_qr)');
     print("Products table created");
 
     // 2. Create GestQR Table
@@ -98,33 +96,17 @@ class DBHelper {
     final batch = db.batch();
 
     // --- 1. Incoming composite keys ---
-    final incomingKeys = gestQrs
-        .map((g) => [g.gqrLempNo, g.gqrUsrNo, g.gqrNo])
-        .toList();
+    final incomingKeys = gestQrs.map((g) => [g.gqrLempNo, g.gqrUsrNo, g.gqrNo]).toList();
 
     // --- 2. Local existing keys ---
-    final result = await db.query(
-      'gestqr',
-      columns: ['gqr_lemp_no', 'gqr_usr_no', 'gqr_no'],
-    );
-    final localKeys = result
-        .map(
-          (e) => [
-            e['gqr_lemp_no'] as int,
-            e['gqr_usr_no'] as int,
-            e['gqr_no'] as int,
-          ],
-        )
-        .toList();
+    final result = await db.query('gestqr', columns: ['gqr_lemp_no', 'gqr_usr_no', 'gqr_no']);
+    final localKeys = result.map((e) => [e['gqr_lemp_no'] as int, e['gqr_usr_no'] as int, e['gqr_no'] as int]).toList();
 
     // --- 3. Keys to delete ---
     final toDelete = localKeys
         .where(
           (localKey) => !incomingKeys.any(
-            (incKey) =>
-                incKey[0] == localKey[0] &&
-                incKey[1] == localKey[1] &&
-                incKey[2] == localKey[2],
+            (incKey) => incKey[0] == localKey[0] && incKey[1] == localKey[1] && incKey[2] == localKey[2],
           ),
         )
         .toList();
@@ -140,19 +122,13 @@ class DBHelper {
 
     // --- 5. Delete missing gestQrs ---
     for (var key in toDelete) {
-      batch.delete(
-        'gestqr',
-        where: 'gqr_lemp_no = ? AND gqr_usr_no = ? AND gqr_no = ?',
-        whereArgs: key,
-      );
+      batch.delete('gestqr', where: 'gqr_lemp_no = ? AND gqr_usr_no = ? AND gqr_no = ?', whereArgs: key);
     }
 
     // --- 6. Commit ---
     try {
       await batch.commit(noResult: true);
-      print(
-        "✅ Gestqr Synced: ${gestQrs.length} upserted, ${toDelete.length} deleted.",
-      );
+      print("✅ Gestqr Synced: ${gestQrs.length} upserted, ${toDelete.length} deleted.");
       return gestQrs;
     } catch (e) {
       print("❌ Batch sync failed: $e");
@@ -168,11 +144,7 @@ class DBHelper {
 
   Future<List<GestQr>> getPendingGestQr() async {
     final db = await database;
-    var result = await db.query(
-      'gestqr',
-      where: 'is_uploaded = ?',
-      whereArgs: [0],
-    );
+    var result = await db.query('gestqr', where: 'is_uploaded = ?', whereArgs: [0]);
     return List.generate(result.length, (i) => GestQr.fromJson(result[i]));
   }
 
@@ -214,19 +186,13 @@ class DBHelper {
     // --- 5. Delete missing products ---
     if (toDelete.isNotEmpty) {
       final placeholders = List.generate(toDelete.length, (_) => '?').join(',');
-      batch.delete(
-        'products',
-        where: 'prd_no IN ($placeholders)',
-        whereArgs: toDelete,
-      );
+      batch.delete('products', where: 'prd_no IN ($placeholders)', whereArgs: toDelete);
     }
 
     // --- 6. Commit ---
     try {
       await batch.commit(noResult: true);
-      print(
-        "✅ Products Synced: ${products.length} upserted, ${toDelete.length} deleted.",
-      );
+      print("✅ Products Synced: ${products.length} upserted, ${toDelete.length} deleted.");
       return products;
     } catch (e) {
       print("❌ Batch sync failed: $e");
@@ -252,12 +218,7 @@ class DBHelper {
 
   Future<int> markProductAsUploaded(String prdNo) async {
     final db = await database;
-    return await db.update(
-      'products',
-      {'uploaded': 1},
-      where: 'prd_no = ?',
-      whereArgs: [prdNo],
-    );
+    return await db.update('products', {'uploaded': 1}, where: 'prd_no = ?', whereArgs: [prdNo]);
   }
 
   // ========================= Invontaire METHODS =========================
@@ -288,19 +249,13 @@ class DBHelper {
     // --- 5. Delete missing products ---
     if (toDelete.isNotEmpty) {
       final placeholders = List.generate(toDelete.length, (_) => '?').join(',');
-      batch.delete(
-        'invontaie',
-        where: 'inv_no IN ($placeholders)',
-        whereArgs: toDelete,
-      );
+      batch.delete('invontaie', where: 'inv_no IN ($placeholders)', whereArgs: toDelete);
     }
 
     // --- 6. Commit ---
     try {
       await batch.commit(noResult: true);
-      print(
-        "✅ Invontaies Synced: ${invontaies.length} upserted, ${toDelete.length} deleted.",
-      );
+      print("✅ Invontaies Synced: ${invontaies.length} upserted, ${toDelete.length} deleted.");
       return invontaies;
     } catch (e) {
       print("❌ Batch sync failed: $e");
@@ -333,33 +288,20 @@ class DBHelper {
 
   Future<List<Invontaie>> getPendingInvontaies() async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'invontaie',
-      where: 'is_uploaded = ?',
-      whereArgs: [0],
-    );
+    final List<Map<String, dynamic>> maps = await db.query('invontaie', where: 'is_uploaded = ?', whereArgs: [0]);
     return List.generate(maps.length, (i) => Invontaie.fromJson(maps[i]));
   }
 
   Future<int> markInvontaieAsUploaded(int invNo) async {
     final db = await database;
-    return await db.update(
-      'invontaie',
-      {'is_uploaded': 1},
-      where: 'inv_no = ?',
-      whereArgs: [invNo],
-    );
+    return await db.update('invontaie', {'is_uploaded': 1}, where: 'inv_no = ?', whereArgs: [invNo]);
   }
 
   /// Insert or update a single Invontaie record
   Future<int?> insertOrUpdateInvontaie(Invontaie invontaie) async {
     final db = await database;
     try {
-      final id = await db.insert(
-        'invontaie',
-        invontaie.toJson(),
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      final id = await db.insert('invontaie', invontaie.toJson(), conflictAlgorithm: ConflictAlgorithm.replace);
       print("Invontaie saved locally with id: $id");
       return id;
     } catch (e) {
@@ -370,11 +312,7 @@ class DBHelper {
 
   // ========================= UTILS (DEBUGGING) =========================
 
-  Future<bool> insertGestQrAndProductInTransaction(
-    Product product,
-    int gqrUsrNo,
-    int gqrLempNo,
-  ) async {
+  Future<bool> insertGestQrAndProductInTransaction(Product product, int gqrUsrNo, int gqrLempNo) async {
     try {
       final db = await database;
 
@@ -391,11 +329,7 @@ class DBHelper {
         int nextNo = result.first['nextNo'] as int;
 
         // Insert or replace product
-        await txn.insert(
-          'products',
-          product.toJson(),
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        await txn.insert('products', product.toJson(), conflictAlgorithm: ConflictAlgorithm.replace);
 
         // Insert gestqr
         final gestQr = GestQr(
@@ -407,11 +341,7 @@ class DBHelper {
           isUploaded: 0,
         );
 
-        await txn.insert(
-          'gestqr',
-          gestQr.toJson(),
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        await txn.insert('gestqr', gestQr.toJson(), conflictAlgorithm: ConflictAlgorithm.replace);
       });
       return true;
     } catch (e) {
@@ -433,7 +363,7 @@ class DBHelper {
   Future<void> copyDatabaseToDownloads() async {
     try {
       final dbPath = await getDatabasesPath();
-      final path = join(dbPath, 'zakawatt_inventaire_Database.db');
+      final path = join(dbPath, 'InvontaireData.db');
 
       // NOTE: This path requires storage permissions on Android 10+
       final newPath = '/storage/emulated/0/Download/InvontaireData_Backup3.db';
