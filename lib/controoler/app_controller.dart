@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -54,10 +53,7 @@ class AppController extends GetxController {
     });
   }
 
-  void _updateConnectivityStatus(
-    List<ConnectivityResult> status,
-    bool internet,
-  ) async {
+  void _updateConnectivityStatus(List<ConnectivityResult> status, bool internet) async {
     // Check if connected to a network
     bool connectedToNetwork =
         status.contains(ConnectivityResult.wifi) ||
@@ -135,9 +131,7 @@ class AppController extends GetxController {
         final prdNo = product.prdNo;
         if (prdNo == null || prdNo.isEmpty) continue;
 
-        final response = await crud.post("${AppLink.products}/$prdNo", {
-          'prd_qr': product.prdQr,
-        });
+        final response = await crud.post("${AppLink.products}/$prdNo", {'prd_qr': product.prdQr});
 
         if (response.statusCode == 200 || response.statusCode == 201) {
           print('Uploaded product ${product.prdNo} successfully.');
@@ -169,9 +163,7 @@ class AppController extends GetxController {
           'gqr_usr_no': gestQr.gqrUsrNo,
           'gqr_prd_no': gestQr.gqrPrdNo,
           'gqr_no': gestQr.gqrNo,
-          'gqr_date': gestQr.gqrDate == null
-              ? DateTime.now().toIso8601String()
-              : gestQr.gqrDate!.toIso8601String(),
+          'gqr_date': gestQr.gqrDate == null ? DateTime.now().toIso8601String() : gestQr.gqrDate!.toIso8601String(),
         });
 
         if (response.statusCode == 200 || response.statusCode == 201) {
@@ -209,21 +201,14 @@ class AppController extends GetxController {
             'inv_prd_no': invontaie.invPrdNo,
             'inv_exp': invontaie.invExp,
             'inv_qte': invontaie.invQte,
-            'inv_date':
-                invontaie.invDate?.toIso8601String() ??
-                DateTime.now().toIso8601String(),
+            'inv_date': invontaie.invDate?.toIso8601String() ?? DateTime.now().toIso8601String(),
           });
 
           if (response.statusCode == 200 || response.statusCode == 201) {
             print('Uploaded invontaie ${invontaie.invNo} successfully.');
             if (invontaie.invNo != null) {
-              final updated = await dbHelper.markInvontaieAsUploaded(
-                invontaie.invNo!,
-              );
-              countInvontaies.value = (countInvontaies.value - updated).clamp(
-                0,
-                pendingInvontaies.length,
-              );
+              final updated = await dbHelper.markInvontaieAsUploaded(invontaie.invNo!);
+              countInvontaies.value = (countInvontaies.value - updated).clamp(0, pendingInvontaies.length);
             } else {
               continue;
             }
@@ -244,10 +229,7 @@ class AppController extends GetxController {
     String qtyText = "";
     String cleanName = name;
 
-    final qtyRegex = RegExp(
-      r'/\s*Qte\s*[:=]?\s*(\d+)\s*$',
-      caseSensitive: false,
-    );
+    final qtyRegex = RegExp(r'/\s*Qte\s*[:=]?\s*(\d+)\s*$', caseSensitive: false);
     final match = qtyRegex.firstMatch(name);
     if (match != null) {
       qtyText = match.group(0) ?? "";

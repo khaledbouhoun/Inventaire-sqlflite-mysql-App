@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:invontaire_local/class/crud.dart';
-import 'package:invontaire_local/constant/linkapi.dart';
 import 'package:invontaire_local/controoler/app_controller.dart';
 import 'package:invontaire_local/controoler/home_controller.dart';
 import 'package:invontaire_local/data/model/product_model.dart';
@@ -10,7 +8,6 @@ import 'package:invontaire_local/fonctions/dialog.dart';
 class QrController extends GetxController {
   late final HomeController homeController = Get.find<HomeController>();
   late final AppController appController = Get.find<AppController>();
-  late final Crud _crud = Get.find<Crud>();
   late final Dialogfun _dialogfun = Get.find<Dialogfun>();
 
   // ALL products from DB
@@ -40,8 +37,7 @@ class QrController extends GetxController {
     _setupSearchDebounce();
 
     scrollController.addListener(() {
-      if (scrollController.position.pixels >=
-          scrollController.position.maxScrollExtent - 200) {
+      if (scrollController.position.pixels >= scrollController.position.maxScrollExtent - 200) {
         loadMore();
       }
     });
@@ -99,11 +95,7 @@ class QrController extends GetxController {
 
   void _setupSearchDebounce() {
     print("--Setting up search debounce");
-    debounce(
-      searchQuery,
-      (_) => performOptimizedSearch(),
-      time: const Duration(milliseconds: 200),
-    );
+    debounce(searchQuery, (_) => performOptimizedSearch(), time: const Duration(milliseconds: 200));
   }
 
   void onSearchChanged(String value) {
@@ -181,17 +173,14 @@ class QrController extends GetxController {
       // }
       // print("cleanName : $cleanName");
       // prod.prdQr = "${prod.prdNo} / $cleanName";
-      final Map<String, String> nameAndQty = appController.removeQtyFromName(
-        prod.prdNom ?? "",
-      );
+      final Map<String, String> nameAndQty = appController.removeQtyFromName(prod.prdNom ?? "");
       prod.prdQr = "${prod.prdNo} / ${nameAndQty['cleanName']}";
 
-      bool success = await appController.dbHelper
-          .insertGestQrAndProductInTransaction(
-            prod,
-            homeController.user!.usrNo!,
-            homeController.user!.usrLemp!,
-          );
+      bool success = await appController.dbHelper.insertGestQrAndProductInTransaction(
+        prod,
+        homeController.user!.usrNo!,
+        homeController.user!.usrLemp!,
+      );
       if (success) {
         _showSuccessSnackbar("QR generation enregistré local success");
       } else {
@@ -245,9 +234,7 @@ class QrController extends GetxController {
           ),
           backgroundColor: Colors.green.shade600,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           margin: const EdgeInsets.all(10),
           duration: const Duration(seconds: 2),
         ),
@@ -270,9 +257,7 @@ class QrController extends GetxController {
           ),
           backgroundColor: Colors.red.shade600,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           margin: const EdgeInsets.all(10),
           duration: const Duration(seconds: 3),
         ),
